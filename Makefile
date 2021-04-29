@@ -111,6 +111,7 @@ ELC_SRCS := \
 	cr.c \
 	cs.c \
 	el.c \
+	desmos.c \
 	forth.c \
 	f90.c \
 	fs.c \
@@ -578,6 +579,10 @@ RUNNER := tools/runqftasm.sh
 TOOL := python
 # Since the QFTASM backend is 16-bit, 24-bit-related programs are filtered out.
 TEST_FILTER := $(addsuffix .qftasm,$(filter out/24_%.c.eir,$(OUT.eir))) out/eof.c.eir.qftasm out/neg.c.eir.qftasm out/8cc.c.eir.qftasm out/elc.c.eir.qftasm out/dump_ir.c.eir.qftasm out/eli.c.eir.qftasm
+include target.mk
+
+TARGET := desmos
+RUNNER := tools/rundesmos.sh
 include target.mk
 
 test: $(TEST_RESULTS)
