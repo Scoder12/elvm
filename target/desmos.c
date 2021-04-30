@@ -9,12 +9,6 @@
 #define DESMOS_MAX_ARRAY_LEN 100
 #define DESMOS_NUM_MEMCHUNKS 3
 
-void desmos_init_graph() {
-  // getState() has a graph key with viewport info, and a randomSeed, but hese fields
-  //  are actually optional for Calc.setState().
-  fputs("{\"version\":8,\"expressions\":{\"list\":[", stdout);
-}
-
 void desmos_emit_id(char *s, size_t l) {
   if (l <= 1) {
     putchar(s[0]);
@@ -62,71 +56,79 @@ void desmos_emit_json_escaped_string(char *p, size_t len) {
   }
 }
 
-void desmos_start_expression(int *exp_id) {
-  if (*exp_id != 0) {
+void desmos_init_graph(void) {
+  // getState() has a graph key with viewport info, and a randomSeed, but hese fields
+  //  are actually optional for Calc.setState().
+  fputs("{\"version\":8,\"expressions\":{\"list\":[", stdout);
+}
+
+void desmos_end_graph(void) {
+  fputs("]}}", stdout);
+}
+
+static int exp_id;
+
+void desmos_start_expression(void) {
+  if (exp_id != 0) {
     putchar(',');
   }
   // getState() returns color as well but that is optional
   fputs("{\"type\":\"expression\",\"id\":", stdout);
-  printf("%d,\"latex\":\"", *exp_id);
-  (*exp_id)++;
+  printf("%d,\"latex\":\"", exp_id);
+  exp_id++;
 }
 
-void desmos_end_expression() {
+void desmos_end_expression(void) {
   fputs("\"}", stdout);
 }
 
-void desmos_start_simulation(int *exp_id) {
-  if (*exp_id != 0) {
+void desmos_start_simulation(void) {
+  if (exp_id != 0) {
     putchar(',');
   }
   fputs("{\"type\":\"simulation\",\"id\":", stdout);
-  printf("%d", *exp_id);
+  printf("%d", exp_id);
   // getState returns fps but that is optional, the default of 60 is assumed
   fputs(",\"clickableInfo\":{\"rules\":[", stdout);
-  (*exp_id)++;
+  exp_id++;
 }
 
-void desmos_start_simulation_rule(int *exp_id, int sim_start, char *assignment) {
-  if (*exp_id != sim_start) {
+void desmos_start_simulation_rule(int sim_start, char *assignment) {
+  if (exp_id != sim_start) {
     putchar(',');
   }
   fputs("{\"id\":", stdout);
-  printf("%d,\"assignment\":\"%s\",\"expression\":\"", *exp_id, assignment);
-  (*exp_id)++;
+  printf("%d,\"assignment\":\"%s\",\"expression\":\"", exp_id, assignment);
+  exp_id++;
 }
 
-void desmos_end_simulation_rule() {
+void desmos_end_simulation_rule(void) {
   fputs("\"}", stdout);
 }
 
-void desmos_end_simulation() {
+void desmos_end_simulation(void) {
   fputs("]}}", stdout);
 }
 
-void desmos_start_list() {
+void desmos_start_list(void) {
   fputs("\\\\left[", stdout);
 }
 
-void desmos_end_list() {
+void desmos_end_list(void) {
   fputs("\\\\right]", stdout);
 }
 
-void desmos_end_graph() {
-  fputs("]}}", stdout);
-}
-
-void desmos_init_mainloop(int *exp_id) {
-  desmos_start_simulation(exp_id);
-  int sim_start = *exp_id;
-  desmos_start_simulation_rule(exp_id, sim_start, "r");
+void desmos_init_mainloop(void) {
+  desmos_start_simulation();
+  int sim_start = exp_id;
+  desmos_start_simulation_rule(sim_start, "r");
   fputs("u\\\\left(-1\\\\right)", stdout);
   desmos_end_simulation_rule();
   desmos_end_simulation();
 }
 
-void desmos_init_registers(int *exp_id) {
-  desmos_start_expression(exp_id);
+void desmos_init_registers(void) {
+  desmos_start_expression();
   fputs("r=\\\\left[", stdout);
   // 1 running bool, 7 registers
   for (int i = 0; i < 8; i++) {
@@ -139,15 +141,15 @@ void desmos_init_registers(int *exp_id) {
   desmos_end_expression();
 }
 
-void desmos_start_memchunk(int *exp_id, int memchunk) {
-  desmos_start_expression(exp_id);
+void desmos_start_memchunk(int memchunk) {
+  desmos_start_expression();
   printf("m_{em%d}=", memchunk);
 }
 
-void desmos_init_mem(int *exp_id, Data *data) {
+void desmos_init_mem(Data *data) {
   int mp = 0;
   int memchunk = 0;
-  desmos_start_memchunk(exp_id, 0);
+  desmos_start_memchunk(0);
   desmos_start_list();
 
   while (true) {
@@ -166,7 +168,7 @@ void desmos_init_mem(int *exp_id, Data *data) {
       mp = 0;
       desmos_end_list();
       desmos_end_expression();
-      desmos_start_memchunk(exp_id, memchunk);
+      desmos_start_memchunk(memchunk);
       desmos_start_list();
     } else {
       putchar(',');
@@ -175,21 +177,32 @@ void desmos_init_mem(int *exp_id, Data *data) {
   desmos_end_list();
   desmos_end_expression();
   while (memchunk < DESMOS_NUM_MEMCHUNKS) {
-    desmos_start_memchunk(exp_id, memchunk);
+    desmos_start_memchunk(memchunk);
     fputs("\\\\sum_{n=\\\\left[1,...10000\\\\right]}^{\\\\left[1,...10000\\\\right]}0", stdout);
     desmos_end_expression();
     memchunk++;
   }
 }
 
+void desmos_emit_func_prologue(int func_id) {
+  desmos_start_expression();
+  printf("f_{%d}\\\\left(o\\\\right)=", func_id);
+}
+
+void desmos_emit_func_epilogue(void) {
+  desmos_end_expression();
+}
+
+void desmos_emit_pc_change() {
+}
+
 void target_desmos(Module *module) {
-  int exp_id = 0;
   desmos_init_graph();
   // Desmos functions are position independent so might as well put the mainloop at the
   //  beginning to look nice
-  desmos_init_mainloop(&exp_id);
-  desmos_init_registers(&exp_id);
-  desmos_init_mem(&exp_id, module->data);
+  desmos_init_mainloop();
+  desmos_init_registers();
+  desmos_init_mem(module->data);
   // These functions TODO
   //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
   //desmos_emit_update_function(&exp_id, num_funcs);
