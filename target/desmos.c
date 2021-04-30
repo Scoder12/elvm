@@ -7,7 +7,7 @@
 //#define DESMOS_MAX_ARRAY_LEN 10000
 //#define DESMOS_NUM_MEMCHUNKS 100
 #define DESMOS_MAX_ARRAY_LEN 100
-#define DESMOS_NUM_MEMCHUNKS 1
+#define DESMOS_NUM_MEMCHUNKS 3
 
 void desmos_init_graph() {
   // getState() has a graph key with viewport info, and a randomSeed, but hese fields
@@ -76,6 +76,34 @@ void desmos_end_expression() {
   fputs("\"}", stdout);
 }
 
+void desmos_start_simulation(int *exp_id) {
+  if (*exp_id != 0) {
+    putchar(',');
+  }
+  fputs("{\"type\":\"simulation\",\"id\":", stdout);
+  printf("%d", *exp_id);
+  // getState returns fps but that is optional, the default of 60 is assumed
+  fputs(",\"clickableInfo\":{\"rules\":[", stdout);
+  (*exp_id)++;
+}
+
+void desmos_start_simulation_rule(int *exp_id, int sim_start, char *assignment) {
+  if (*exp_id != sim_start) {
+    putchar(',');
+  }
+  fputs("{\"id\":", stdout);
+  printf("%d,\"assignment\":\"%s\",\"expression\":\"", *exp_id, assignment);
+  (*exp_id)++;
+}
+
+void desmos_end_simulation_rule() {
+  fputs("\"}", stdout);
+}
+
+void desmos_end_simulation() {
+  fputs("]}}", stdout);
+}
+
 void desmos_start_list() {
   fputs("\\\\left[", stdout);
 }
@@ -88,10 +116,20 @@ void desmos_end_graph() {
   fputs("]}}", stdout);
 }
 
+void desmos_init_mainloop(int *exp_id) {
+  desmos_start_simulation(exp_id);
+  int sim_start = *exp_id;
+  desmos_start_simulation_rule(exp_id, sim_start, "r");
+  fputs("u\\\\left(-1\\\\right)", stdout);
+  desmos_end_simulation_rule();
+  desmos_end_simulation();
+}
+
 void desmos_init_registers(int *exp_id) {
   desmos_start_expression(exp_id);
   fputs("r=\\\\left[", stdout);
-  for (int i = 0; i < 7; i++) {
+  // 1 running bool, 7 registers
+  for (int i = 0; i < 8; i++) {
     if (i != 0) {
       putchar(',');
     }
@@ -146,8 +184,14 @@ void desmos_init_mem(int *exp_id, Data *data) {
 
 void target_desmos(Module *module) {
   int exp_id = 0;
+  // Desmos functions are position independent so might as well put the mainloop at the
+  //  beginning to look nice
+  desmos_init_mainloop(&exp_id);
   desmos_init_graph();
   desmos_init_registers(&exp_id);
   desmos_init_mem(&exp_id, module->data);
+  // These functions TODO
+  //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
+  //desmos_emit_update_function(&exp_id, num_funcs);
   desmos_end_graph();
 }
