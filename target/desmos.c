@@ -4,8 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DESMOS_MAX_ARRAY_LEN 10000
-#define DESMOS_NUM_MEMCHUNKS 100
+//#define DESMOS_MAX_ARRAY_LEN 10000
+//#define DESMOS_NUM_MEMCHUNKS 100
+#define DESMOS_MAX_ARRAY_LEN 100
+#define DESMOS_NUM_MEMCHUNKS 1
 
 void desmos_init_graph() {
   // getState() has a graph key with viewport info, and a randomSeed, but hese fields
@@ -66,8 +68,8 @@ void desmos_start_expression(int *exp_id) {
   }
   // getState() returns color as well but that is optional
   fputs("{\"type\":\"expression\",\"id\":", stdout);
-  (*exp_id)++;
   printf("%d,\"latex\":\"", *exp_id);
+  (*exp_id)++;
 }
 
 void desmos_end_expression() {
@@ -84,6 +86,19 @@ void desmos_end_list() {
 
 void desmos_end_graph() {
   fputs("]}}", stdout);
+}
+
+void desmos_init_registers(int *exp_id) {
+  desmos_start_expression(exp_id);
+  fputs("r=\\\\left[", stdout);
+  for (int i = 0; i < 7; i++) {
+    if (i != 0) {
+      putchar(',');
+    }
+    fputs("0", stdout);
+  }
+  fputs("\\\\right]", stdout);
+  desmos_end_expression();
 }
 
 void desmos_start_memchunk(int *exp_id, int memchunk) {
@@ -132,6 +147,7 @@ void desmos_init_mem(int *exp_id, Data *data) {
 void target_desmos(Module *module) {
   int exp_id = 0;
   desmos_init_graph();
+  desmos_init_registers(&exp_id);
   desmos_init_mem(&exp_id, module->data);
   desmos_end_graph();
 }
