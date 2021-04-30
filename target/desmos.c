@@ -184,10 +184,10 @@ void desmos_init_mem(int *exp_id, Data *data) {
 
 void target_desmos(Module *module) {
   int exp_id = 0;
+  desmos_init_graph();
   // Desmos functions are position independent so might as well put the mainloop at the
   //  beginning to look nice
   desmos_init_mainloop(&exp_id);
-  desmos_init_graph();
   desmos_init_registers(&exp_id);
   desmos_init_mem(&exp_id, module->data);
   // These functions TODO
