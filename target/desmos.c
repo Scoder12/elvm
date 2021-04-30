@@ -63,7 +63,7 @@ void desmos_emit_json_escaped_string(char *p, size_t len) {
 void desmos_start_expression(int *exp_id) {
   // getState() returns color as well but that is optional
   fputs("{\"type\":\"expression\",\"id\":", stdout);
-  *exp_id++;
+  (*exp_id)++;
   printf("%d,\"latex\":\"", *exp_id);
 }
 
