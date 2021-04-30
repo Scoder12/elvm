@@ -61,6 +61,9 @@ void desmos_emit_json_escaped_string(char *p, size_t len) {
 }
 
 void desmos_start_expression(int *exp_id) {
+  if (*exp_id != 0) {
+    putchar(',');
+  }
   // getState() returns color as well but that is optional
   fputs("{\"type\":\"expression\",\"id\":", stdout);
   (*exp_id)++;
@@ -86,17 +89,13 @@ void desmos_end_graph() {
 void desmos_start_memchunk(int *exp_id, int memchunk) {
   desmos_start_expression(exp_id);
   printf("m_{em%d}=", memchunk);
-  desmos_start_list();
 }
 
-void desmos_end_memchunk() {
-  desmos_end_list();
-  desmos_end_expression();
-}
-
-int desmos_init_mem(int *exp_id, Data *data) {
-  int mp, memchunk = 0;
+void desmos_init_mem(int *exp_id, Data *data) {
+  int mp = 0;
+  int memchunk = 0;
   desmos_start_memchunk(exp_id, 0);
+  desmos_start_list();
 
   while (true) {
     if (data) {
@@ -108,27 +107,31 @@ int desmos_init_mem(int *exp_id, Data *data) {
     mp++;
     if (mp >= DESMOS_MAX_ARRAY_LEN) {
       memchunk++;
-      if (memchunk >= DESMOS_NUM_MEMCHUNKS) {
+      if (memchunk >= DESMOS_NUM_MEMCHUNKS || !data) {
         break;
       }
       mp = 0;
-      desmos_end_memchunk();
+      desmos_end_list();
+      desmos_end_expression();
       desmos_start_memchunk(exp_id, memchunk);
+      desmos_start_list();
     } else {
       putchar(',');
     }
   }
-  desmos_end_memchunk();
-  return 0;
+  desmos_end_list();
+  desmos_end_expression();
+  while (memchunk < DESMOS_NUM_MEMCHUNKS) {
+    desmos_start_memchunk(exp_id, memchunk);
+    fputs("\\\\sum_{n=\\\\left[1,...10000\\\\right]}^{\\\\left[1,...10000\\\\right]}0", stdout);
+    desmos_end_expression();
+    memchunk++;
+  }
 }
 
 void target_desmos(Module *module) {
   int exp_id = 0;
-  if (desmos_init_mem(&exp_id, module->data) == -1) {
-    fputs("Data overflow", stderr);
-    return;
-  };
-  return;
   desmos_init_graph();
+  desmos_init_mem(&exp_id, module->data);
   desmos_end_graph();
 }
