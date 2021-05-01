@@ -8,6 +8,8 @@
 //#define DESMOS_NUM_MEMCHUNKS 100
 #define DESMOS_MAX_ARRAY_LEN 100
 #define DESMOS_NUM_MEMCHUNKS 3
+// DESMOS_NUM_MEMCHUNKS + 1 for registers
+#define DESMOS_COND_SIZE (DESMOS_NUM_MEMCHUNKS + 1)
 
 void desmos_emit_id(char *s, size_t l) {
   if (l <= 1) {
@@ -122,7 +124,7 @@ void desmos_init_mainloop(void) {
   desmos_start_simulation();
   int sim_start = exp_id;
   desmos_start_simulation_rule(sim_start, "r");
-  fputs("u\\\\left(-1\\\\right)", stdout);
+  fputs("u\\\\left(0,r\\\\right)", stdout);
   desmos_end_simulation_rule();
   desmos_end_simulation();
 }
@@ -184,16 +186,112 @@ void desmos_init_mem(Data *data) {
   }
 }
 
+typedef struct DesmosCondition_
+{
+  char *cond;
+  char *out;
+  struct DesmosCondition_ *next;
+} DesmosCondition;
+
+static DesmosCondition* desmos_current_cond[DESMOS_COND_SIZE];
+
+void desmos_free_current_cond(void) {
+  DesmosCondition *tmp, *head;
+  for (int i = 0; i < DESMOS_COND_SIZE; i++) {
+    fprintf(stderr, "Free register %d\n", i);
+    while (head != NULL) {
+      tmp = head;
+      head = head->next;
+      free(tmp->cond);
+      free(tmp->out);
+      free(tmp);
+    }
+  }
+}
+
 void desmos_emit_func_prologue(int func_id) {
+  fprintf(stderr, "Emit function%d prologue\n", func_id);
+  desmos_free_current_cond();
   desmos_start_expression();
-  printf("f_{%d}\\\\left(o\\\\right)=", func_id);
+  printf("f_{%d}\\\\left(m,o\\\\right)=", func_id);
 }
 
 void desmos_emit_func_epilogue(void) {
+  fprintf(stderr, "Emit function epilogue\n");
+  bool first = true;
+  int opened_brackets = 0;
+
+  for (int i = 0; i < DESMOS_COND_SIZE; i++) {
+    DesmosCondition *cond = desmos_current_cond[i];
+    fprintf(stderr, "  Process memchunk %d\n", i);
+
+    if (cond) {
+      if (!first) {
+        putchar(',');
+      }
+      first = false;
+
+      printf("\\\\left\\\\{m=%d:\\\\left\\\\{", i);
+      opened_brackets++;
+      int register_opened_brackets = 0;
+      for (; cond; register_opened_brackets++, cond = cond->next) {
+        if (register_opened_brackets != 0) {
+          fputs(",\\\\left\\\\{", stdout);
+        }
+        printf("%s:%s", cond->cond, cond->out);
+      }
+      fputs(",o", stdout);
+      for (int j = 0; j < register_opened_brackets; j++) {
+        fputs("\\\\right\\\\}", stdout);
+      }
+    }
+  }
+  for (int j = 0; j < opened_brackets; j++) {
+    fputs("\\\\right\\\\}", stdout);
+  }
   desmos_end_expression();
 }
 
-void desmos_emit_pc_change() {
+#define UNUSED(x) (void)(x)
+
+void desmos_emit_pc_change(int pc) {
+  UNUSED(pc);
+}
+
+char* desmos_sprintf(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  size_t needed = vsnprintf(NULL, 0, fmt, ap);
+  va_end(ap);
+  char* data = malloc(needed + 1);
+  va_start(ap, fmt);
+  vsprintf(data, fmt, ap);
+  va_end(ap);
+  return data;
+}
+
+void desmos_emit_inst(Inst* inst) {
+  int memchunk = rand() % DESMOS_COND_SIZE;
+  fprintf(stderr, "Emit instruction pc=%d op=%d memchk=%d\n", inst->pc, inst->op, memchunk);
+
+  DesmosCondition *cond;
+  cond = malloc(sizeof(DesmosCondition));
+  cond->next = NULL;
+  cond->cond = NULL;
+  cond->out = NULL;
+
+  DesmosCondition *base = desmos_current_cond[memchunk];
+  if (base) {
+    while(base->next) {
+      base = base->next;
+    }
+    base->next = cond;
+  } else {
+    desmos_current_cond[memchunk] = cond;
+  }
+
+  cond->cond = "0=1";
+  cond->out = "123";
 }
 
 void target_desmos(Module *module) {
@@ -206,5 +304,12 @@ void target_desmos(Module *module) {
   // These functions TODO
   //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
   //desmos_emit_update_function(&exp_id, num_funcs);
+  emit_chunked_main_loop(module->text,
+                                         desmos_emit_func_prologue,
+                                         desmos_emit_func_epilogue,
+                                         desmos_emit_pc_change,
+                                         desmos_emit_inst);
+
   desmos_end_graph();
+  desmos_free_current_cond();
 }
