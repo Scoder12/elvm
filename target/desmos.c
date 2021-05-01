@@ -258,7 +258,7 @@ void desmos_emit_pc_change(int pc) {
   UNUSED(pc);
 }
 
-char* desmos_sprintf(const char *fmt, ...) {
+char* desmos_mallocd_sprintf(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   size_t needed = vsnprintf(NULL, 0, fmt, ap);
