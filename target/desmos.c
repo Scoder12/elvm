@@ -258,6 +258,12 @@ void desmos_emit_pc_change(int pc) {
   UNUSED(pc);
 }
 
+void desmos_emit_assign_function() {
+  desmos_start_expression();
+  fputs("", stdout);
+  desmos_end_expression();
+}
+
 char* desmos_mallocd_sprintf(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -270,10 +276,7 @@ char* desmos_mallocd_sprintf(const char *fmt, ...) {
   return data;
 }
 
-void desmos_emit_inst(Inst* inst) {
-  int memchunk = rand() % DESMOS_COND_SIZE;
-  fprintf(stderr, "Emit instruction pc=%d op=%d memchk=%d\n", inst->pc, inst->op, memchunk);
-
+DesmosCondition* desmos_alloc_cond(int memchunk) {
   DesmosCondition *cond;
   cond = malloc(sizeof(DesmosCondition));
   cond->next = NULL;
@@ -289,9 +292,75 @@ void desmos_emit_inst(Inst* inst) {
   } else {
     desmos_current_cond[memchunk] = cond;
   }
+  return cond;
+}
 
-  cond->cond = "0=1";
-  cond->out = "123";
+void desmos_emit_inst(Inst* inst) {
+  switch (inst->op) {
+  case MOV:
+    emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case ADD:
+    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
+              reg_names[inst->dst.reg],
+              reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case SUB:
+    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
+              reg_names[inst->dst.reg],
+              reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case LOAD:
+    emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    break;
+
+  case STORE:
+    emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
+    break;
+
+  case PUTC:
+    emit_line("putchar(%s);", src_str(inst));
+    break;
+
+  case GETC:
+    emit_line("%s = getchar();",
+              reg_names[inst->dst.reg]);
+    break;
+
+  case EXIT:
+    emit_line("running = false; break;");
+    break;
+
+  case DUMP:
+    break;
+
+  case EQ:
+  case NE:
+  case LT:
+  case GT:
+  case LE:
+  case GE:
+    emit_line("%s = (%s) | 0;",
+              reg_names[inst->dst.reg], cmp_str(inst, "true"));
+    break;
+
+  case JEQ:
+  case JNE:
+  case JLT:
+  case JGT:
+  case JLE:
+  case JGE:
+  case JMP:
+    emit_line("if (%s) pc = %s - 1;",
+              cmp_str(inst, "true"), value_str(&inst->jmp));
+    break;
+
+  default:
+    error("oops");
+  }
 }
 
 void target_desmos(Module *module) {
