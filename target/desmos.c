@@ -7,7 +7,9 @@
 //#define DESMOS_MAX_ARRAY_LEN 10000
 //#define DESMOS_NUM_MEMCHUNKS 100
 #define DESMOS_MAX_ARRAY_LEN 100
+#define DESMOS_MAX_ARRAY_LEN_STR "100"
 #define DESMOS_NUM_MEMCHUNKS 3
+
 // DESMOS_NUM_MEMCHUNKS + 1 for registers
 #define DESMOS_COND_SIZE (DESMOS_NUM_MEMCHUNKS + 1)
 
@@ -180,7 +182,11 @@ void desmos_init_mem(Data *data) {
   desmos_end_expression();
   while (memchunk < DESMOS_NUM_MEMCHUNKS) {
     desmos_start_memchunk(memchunk);
-    fputs("\\\\sum_{n=\\\\left[1,...10000\\\\right]}^{\\\\left[1,...10000\\\\right]}0", stdout);
+    fputs("\\\\sum_{n=\\\\left[1,..."
+          DESMOS_MAX_ARRAY_LEN_STR
+          "\\\\right]}^{\\\\left[1,..."
+          DESMOS_MAX_ARRAY_LEN_STR
+          "\\\\right]}0", stdout);
     desmos_end_expression();
     memchunk++;
   }
@@ -231,7 +237,11 @@ void desmos_emit_func_epilogue(void) {
       }
       first = false;
 
-      printf("\\\\left\\\\{m=%d:\\\\left\\\\{", i);
+      printf("\\\\left\\\\{m=%d:", i);
+      if (i == 0) {
+        fputs("a\\\\left(", stdout);
+      }
+      fputs("\\\\left\\\\{", stdout);
       opened_brackets++;
       int register_opened_brackets = 0;
       for (; cond; register_opened_brackets++, cond = cond->next) {
@@ -243,6 +253,9 @@ void desmos_emit_func_epilogue(void) {
       fputs(",o", stdout);
       for (int j = 0; j < register_opened_brackets; j++) {
         fputs("\\\\right\\\\}", stdout);
+        if (j == 0 && i == 0) {
+          fputs(",0,r\\\\left[1\\\\right]+1\\\\right)", stdout);
+        }
       }
     }
   }
@@ -258,9 +271,38 @@ void desmos_emit_pc_change(int pc) {
   UNUSED(pc);
 }
 
-void desmos_emit_assign_function() {
+void desmos_emit_assign_function(void) {
   desmos_start_expression();
-  fputs("", stdout);
+  fputs("a_{1}\\\\left(l_{asn},i_{asn},v_{asn},t_{asn}\\\\right)=\\\\sum_{n=t_{asn}}^{"
+        "t_{asn}}\\\\left\\\\{i_{asn}=n:v_{asn},l_{asn}\\\\left[n\\\\right]\\\\right\\"
+        "\\}", stdout);
+  desmos_end_expression();
+  desmos_start_expression();
+  fputs("a\\\\left(l_{asn},i_{asn},v_{asn}\\\\right)=a_{1}\\\\left(l_{asn},i_{asn"
+        "},v_{asn},\\\\left[1,...,\\\\operatorname{length}\\\\left(l_{asn}\\\\right)\\"
+        "\\right]\\\\right)", stdout);
+  desmos_end_expression();
+}
+
+void desmos_emit_mem_accessor(void) {
+  desmos_start_expression();
+  fputs("g\\\\left(l\\\\right)=m\\\\left(\\\\operatorname{floor}\\\\left(\\\\frac{l}{"
+    DESMOS_MAX_ARRAY_LEN_STR
+    "}\\\\right)\\\\right)\\\\left[\\\\operatorname{mod}\\\\left(l,"
+    DESMOS_MAX_ARRAY_LEN_STR
+    "\\\\right)\\\\right]", stdout);
+  desmos_end_expression();
+  desmos_start_expression();
+  fputs("m\\\\left(l\\\\right)=", stdout);
+  for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
+    if (i != 0) {
+      putchar(',');
+    }
+    printf("\\\\left\\\\{l=%d:m_{em%d}", i, i);
+  }
+  for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
+    fputs("\\\\right\\\\}", stdout);
+  }
   desmos_end_expression();
 }
 
@@ -295,10 +337,28 @@ DesmosCondition* desmos_alloc_cond(int memchunk) {
   return cond;
 }
 
+void desmos_emit_value_string(Value* v) {
+  if (v->type == REG) {
+    printf("r\\\\left[%d\\\\right]", v->reg + 1);
+  } else if (v->type == IMM) {
+    printf("%d", v->imm);
+  } else {
+    error("bad value type");
+  }
+}
+
 void desmos_emit_inst(Inst* inst) {
+  DesmosCondition *cond = desmos_alloc_cond(rand() % DESMOS_COND_SIZE);
+  cond->cond = "0=1";
+  cond->out = "2";
+  return;
   switch (inst->op) {
   case MOV:
-    emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
+    {
+      //emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
+      DesmosCondition* cond = desmos_alloc_cond(0);
+      cond->cond = desmos_mallocd_sprintf("m=%d", inst->pc);
+    }
     break;
 
   case ADD:
@@ -369,6 +429,8 @@ void target_desmos(Module *module) {
   //  beginning to look nice
   desmos_init_mainloop();
   desmos_init_registers();
+  desmos_emit_assign_function();
+  desmos_emit_mem_accessor();
   desmos_init_mem(module->data);
   // These functions TODO
   //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
