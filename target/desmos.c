@@ -335,27 +335,32 @@ DesmosCondition* desmos_alloc_cond(int memchunk) {
   return cond;
 }
 
-void desmos_emit_value_string(Value* v) {
+char* desmos_value_string(Value* v) {
   if (v->type == REG) {
-    printf("r\\\\left[%d\\\\right]", v->reg + 1);
+    return desmos_mallocd_sprintf("r\\\\left[%d\\\\right]", v->reg + 1);
   } else if (v->type == IMM) {
-    printf("%d", v->imm);
+    return desmos_mallocd_sprintf("%d", v->imm);
   } else {
     error("bad value type");
   }
 }
 
+char* desmos_assign(char *args) {
+  char* r = desmos_mallocd_sprintf("a\\\\left(%s\\\\right)", args);
+  free(args);
+  return r;
+}
+
 void desmos_emit_inst(Inst* inst) {
-  DesmosCondition *cond = desmos_alloc_cond(rand() % DESMOS_COND_SIZE);
-  cond->cond = "0=1";
-  cond->out = "2";
-  return;
   switch (inst->op) {
   case MOV:
     {
       //emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
-      DesmosCondition* cond = desmos_alloc_cond(0);
+      DesmosCondition *cond = desmos_alloc_cond(0);
       cond->cond = desmos_mallocd_sprintf("m=%d", inst->pc);
+      char* val = desmos_value_string(&inst->src);
+      cond->out = desmos_assign(desmos_mallocd_sprintf("r,%d,%s", inst->dst.reg, val));
+      free(val);
     }
     break;
 
