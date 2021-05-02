@@ -135,13 +135,11 @@ void desmos_init_registers(void) {
   desmos_start_expression();
   fputs("r=\\\\left[", stdout);
   // 1 running bool, 7 registers
-  for (int i = 0; i < 8; i++) {
-    if (i != 0) {
-      putchar(',');
-    }
-    fputs("0", stdout);
+  for (int i = 0; i < 7; i++) {
+    fputs("0,", stdout);
   }
-  fputs("\\\\right]", stdout);
+  // pc starts at -1 to init running to true
+  fputs("-1\\\\right]", stdout);
   desmos_end_expression();
 }
 
@@ -286,14 +284,14 @@ void desmos_emit_assign_function(void) {
 
 void desmos_emit_mem_accessor(void) {
   desmos_start_expression();
-  fputs("g\\\\left(l\\\\right)=m\\\\left(\\\\operatorname{floor}\\\\left(\\\\frac{l}{"
+  fputs("g\\\\left(l\\\\right)=b\\\\left(\\\\operatorname{floor}\\\\left(\\\\frac{l}{"
     DESMOS_MAX_ARRAY_LEN_STR
     "}\\\\right)\\\\right)\\\\left[\\\\operatorname{mod}\\\\left(l,"
     DESMOS_MAX_ARRAY_LEN_STR
     "\\\\right)\\\\right]", stdout);
   desmos_end_expression();
   desmos_start_expression();
-  fputs("m\\\\left(l\\\\right)=", stdout);
+  fputs("b\\\\left(l\\\\right)=", stdout);
   for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
     if (i != 0) {
       putchar(',');
@@ -423,6 +421,29 @@ void desmos_emit_inst(Inst* inst) {
   }
 }
 
+void desmos_emit_function_finder(int num_funcs) {
+  desmos_start_expression();
+  fputs("u_{1}\\\\left(p,m,o\\\\right)=", stdout);
+  for (int i = 0; i < num_funcs; i++) {
+    if (i != 0) {
+      putchar(',');
+    }
+    printf("\\\\left\\\\{p=%d:f_{%d}\\\\left(m,o\\\\right)", i, i);
+  }
+  for (int i = 0; i < num_funcs; i++) {
+    fputs("\\\\right\\\\}", stdout);
+  }
+  desmos_end_expression();
+  desmos_start_expression();
+  // Having a second function helps save size because p is much shorter than accessing
+  //  r[0]
+  // If pc == -1, set running to 1 and pc to 0
+  fputs("u\\\\left(m,o\\\\right)=\\\\left\\\\{r\\\\left[8\\\\right]=-1:"
+        "a\\\\left(a\\\\left(r,1,1\\\\right),8,0\\\\right),"
+        "u_{1}\\\\left(r\\\\left[1\\\\right],m,o\\\\right)\\\\right\\\\}", stdout);
+  desmos_end_expression();
+}
+
 void target_desmos(Module *module) {
   desmos_init_graph();
   // Desmos functions are position independent so might as well put the mainloop at the
@@ -435,12 +456,12 @@ void target_desmos(Module *module) {
   // These functions TODO
   //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
   //desmos_emit_update_function(&exp_id, num_funcs);
-  emit_chunked_main_loop(module->text,
+  int num_funcs = emit_chunked_main_loop(module->text,
                                          desmos_emit_func_prologue,
                                          desmos_emit_func_epilogue,
                                          desmos_emit_pc_change,
                                          desmos_emit_inst);
-
+  desmos_emit_function_finder(num_funcs);
   desmos_end_graph();
   desmos_free_current_cond();
 }
