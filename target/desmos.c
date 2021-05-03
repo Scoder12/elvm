@@ -17,6 +17,8 @@
 #define DESMOS_MEM_ACCESSOR "g"
 #define DESMOS_MEM_FMT "m_{em%d}"
 
+#define DESMOS_MODE_REGISTERS "m=0"
+
 // DESMOS_NUM_MEMCHUNKS + 1 for registers
 #define DESMOS_COND_SIZE (DESMOS_NUM_MEMCHUNKS + 1)
 
@@ -199,74 +201,98 @@ void desmos_init_mem(Data *data) {
 
 typedef struct DesmosCondition_
 {
-  char *cond;
+  // unused if in register_conds
+  char *mem_cond;
+  int pc;
   char *out;
   struct DesmosCondition_ *next;
 } DesmosCondition;
 
-static DesmosCondition* desmos_current_cond[DESMOS_COND_SIZE];
+// Desmos condition logic is basically just ternary operators
+// It is much shorter to do
+//  is_register_mode ? (pc == 5 ? <blah>) : (pc == 6 ? <blah> : <other>)
+// Than pc == 5 ? (is_register_mode ? <blah> : o) : pc == 6 ? (is_register_mode ? <blah> : o) : <other>
+// Since all instructions except store write to registers, it is easier to group them
+//  under one global register check, and put all the store instructions in the else
+//  clause of said check. That is what these two linked lists enable. 
+static DesmosCondition* desmos_register_conds = NULL;
+static DesmosCondition* desmos_mem_conds = NULL;
 
-void desmos_free_current_cond(void) {
+void desmos_free_cond(DesmosCondition **cond) {
   DesmosCondition *tmp, *head;
-  for (int i = 0; i < DESMOS_COND_SIZE; i++) {
-    fprintf(stderr, "Free register %d\n", i);
-    while (head != NULL) {
-      tmp = head;
-      head = head->next;
-      free(tmp->cond);
-      free(tmp->out);
-      free(tmp);
-    }
+  head = *cond;
+  while (head != NULL) {
+    tmp = head;
+    head = head->next;
+    free(tmp->mem_cond);
+    free(tmp->out);
+    free(tmp);
   }
+  *cond = NULL; // no use-after-free
+}
+
+void desmos_free_conds(void) {
+  desmos_free_cond(&desmos_register_conds);
+  desmos_free_cond(&desmos_mem_conds);
 }
 
 void desmos_emit_func_prologue(int func_id) {
   fprintf(stderr, "Emit function%d prologue\n", func_id);
-  desmos_free_current_cond();
+  desmos_free_conds();
   desmos_start_expression();
-  printf("f_{%d}\\\\left(m,o\\\\right)=", func_id);
+  // assign is used to increment pc
+  printf("f_{%d}\\\\left(m,o\\\\right)=" DESMOS_ASSIGN "\\\\left(", func_id);
+}
+
+void desmos_emit_cond(DesmosCondition* cond, bool use_condition) {
+  int brackets_to_close = 0;
+  for (DesmosCondition* head = cond; head != NULL; head = head->next) {
+    // check pc == cond->pc
+    printf("\\\\left\\{p=%d:", cond->pc);
+    brackets_to_close++;
+
+    if (use_condition) {
+      // check custom conditon
+      fputs("\\\\left\\\\{", stdout);
+      printf("%s:", cond->mem_cond);
+    }
+
+    // if true, return cond->out
+    printf("%s,", cond->out);
+
+    if (use_condition) {
+      // if pc passes but custom cond doesn't, don't modify
+      fputs("o\\\\right\\\\},", stdout);
+    }
+  }
+  // if no pc checks pass, don't modify
+  fputs("o", stdout);
+  // close all the pc checks
+  for (; brackets_to_close > 0; brackets_to_close--) {
+    fputs("\\\\right\\\\}", stdout);
+  }
 }
 
 void desmos_emit_func_epilogue(void) {
-  fprintf(stderr, "Emit function epilogue\n");
-  bool first = true;
-  int opened_brackets = 0;
-
-  for (int i = 0; i < DESMOS_COND_SIZE; i++) {
-    DesmosCondition *cond = desmos_current_cond[i];
-    fprintf(stderr, "  Process memchunk %d\n", i);
-
-    if (cond) {
-      if (!first) {
-        putchar(',');
-      }
-      first = false;
-
-      printf("\\\\left\\\\{m=%d:", i);
-      if (i == 0) {
-        fputs("a\\\\left(", stdout);
-      }
-      fputs("\\\\left\\\\{", stdout);
-      opened_brackets++;
-      int register_opened_brackets = 0;
-      for (; cond; register_opened_brackets++, cond = cond->next) {
-        if (register_opened_brackets != 0) {
-          fputs(",\\\\left\\\\{", stdout);
-        }
-        printf("%s:%s", cond->cond, cond->out);
-      }
-      fputs(",o", stdout);
-      for (int j = 0; j < register_opened_brackets; j++) {
-        fputs("\\\\right\\\\}", stdout);
-        if (j == 0 && i == 0) {
-          fputs(",0,r\\\\left[1\\\\right]+1\\\\right)", stdout);
-        }
-      }
-    }
+  if (desmos_register_conds != NULL) {
+    fputs("\\\\left\\{m=0:", stdout);
+    desmos_emit_cond(desmos_register_conds, false);
+    putchar(',');
   }
-  for (int j = 0; j < opened_brackets; j++) {
-    fputs("\\\\right\\\\}", stdout);
+
+  if (desmos_mem_conds == NULL) {
+    desmos_emit_cond(desmos_mem_conds, true);
+  } else if (desmos_register_conds != NULL) {
+    // ensure there is a right side of the expression
+    putchar('o');
   }
+
+  if (desmos_register_conds != NULL) {
+    fputs("\\\\right\\}", stdout);
+  }
+
+  // close pc increment assign call from prologue
+  fputs(",7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1\\\\right)", stdout);
   desmos_end_expression();
 }
 
@@ -330,28 +356,37 @@ char* desmos_mallocd_sprintf(const char *fmt, ...) {
   return data;
 }
 
-DesmosCondition* desmos_alloc_cond(int memchunk) {
-  DesmosCondition *cond;
-  cond = malloc(sizeof(DesmosCondition));
-  cond->next = NULL;
-  cond->cond = NULL;
+DesmosCondition* desmos_append_cond(DesmosCondition **base) {
+  DesmosCondition *cond = malloc(sizeof(DesmosCondition));
+  cond->mem_cond = NULL;
+  cond->pc = -1;
   cond->out = NULL;
+  cond->next = NULL;
 
-  DesmosCondition *base = desmos_current_cond[memchunk];
-  if (base) {
-    while(base->next) {
-      base = base->next;
+  if (*base != NULL) {
+    DesmosCondition* tail = *base;
+    while (tail->next != NULL) {
+      tail = tail->next;
     }
-    base->next = cond;
+    tail->next = cond;
   } else {
-    desmos_current_cond[memchunk] = cond;
+    *base = cond;
   }
   return cond;
 }
 
-DesmosCondition* desmos_inst_cond(Inst* inst, int memchunk) {
-  DesmosCondition *cond = desmos_alloc_cond(memchunk);
-  cond->cond = desmos_mallocd_sprintf("m=%d", inst->pc);
+DesmosCondition* desmos_append_reg_cond(Inst* inst, char *out) {
+  DesmosCondition *cond = desmos_append_cond(&desmos_register_conds);
+  cond->pc = inst->pc;
+  cond->out = out;
+  return cond;
+}
+
+DesmosCondition* desmos_append_mem_cond(Inst *inst, char *mem_cond, char *out) {
+  DesmosCondition* cond = desmos_append_cond(&desmos_mem_conds);
+  cond->pc = inst->pc;
+  cond->mem_cond = mem_cond;
+  cond->out = out;
   return cond;
 }
 
@@ -371,53 +406,44 @@ char* desmos_assign(char *args) {
   return r;
 }
 
+// convienience function for reg = tranform(reg)
+void desmos_reg_out(Inst *inst, char *new) {
+  desmos_append_reg_cond(inst, desmos_mallocd_sprintf(
+    DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d,%s\\\\right)",
+    inst->dst.reg, new
+  ));
+  free(new);
+}
+
+void desmos_overflowed_reg_out(Inst *inst, char *join) {
+  char *val = desmos_value_string(&inst->src);
+  desmos_append_reg_cond(inst, desmos_mallocd_sprintf(
+    DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC 
+    "\\\\left(" DESMOS_REGISTERS "\\\\left[%d\\\\right]%s%s\\\\right)\\\\right)",
+    inst->dst.reg, inst->dst.reg, join, val
+  ));
+  free(val);
+}
+
 void desmos_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
-    {
-      //emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
-      DesmosCondition *cond = desmos_inst_cond(inst, 0);
-      char* val = desmos_value_string(&inst->src);
-      cond->out = desmos_assign(desmos_mallocd_sprintf(
-        DESMOS_REGISTERS ",%d,%s", inst->dst.reg, val
-      ));
-      free(val);
-    }
+    desmos_reg_out(inst, desmos_value_string(&inst->src));
     break;
 
   case ADD:
-    DesmosCondition *cond = desmos_inst_cond(inst, 0);
-    char* val = desmos_value_string(&inst->src);
-    cond->out = desmos_assign(desmos_mallocd_sprintf(
-      DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
-        DESMOS_REGISTERS "\\\\left[%d\\\\right]+%s"
-      "\\\\right)",
-      inst->dst.reg, inst->dst.reg, val
-    ));
-    free(val);
+    desmos_overflowed_reg_out(inst, "+");
     break;
 
   case SUB:
-    DesmosCondition *cond = desmos_inst_cond(inst, 0);
-    char* val = desmos_value_string(&inst->src);
-    cond->out = desmos_assign(desmos_mallocd_sprintf(
-      DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
-        DESMOS_REGISTERS "\\\\left[%d\\\\right]-%s"
-      "\\\\right)",
-      inst->dst.reg, inst->dst.reg, val
-    ));
-    free(val);
+    desmos_overflowed_reg_out(inst, "-");
     break;
 
   case LOAD:
-    DesmosCondition *cond = desmos_inst_cond(inst, 0);
-    char* val = desmos_value_string(&inst->src);
-    cond->out = desmos_assign(desmos_mallocd_sprintf(
-      DESMOS_REGISTERS ",%d," DESMOS_MEM_ACCESSOR "\\\\left("
-        "%s"
-      "\\\\right)",
-      inst->dst.reg, val 
-    ));
+    char *val = desmos_value_string(&inst->src);
+    char *new = desmos_mallocd_sprintf(DESMOS_MEM_ACCESSOR "\\\\left(%s\\\\right)", val);
+    free(val);
+    desmos_reg_out(inst, new);
     break;
 
   case STORE:
