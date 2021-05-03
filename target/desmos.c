@@ -386,24 +386,27 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case ADD:
-    emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
-              reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
     DesmosCondition *cond = desmos_inst_cond(inst, 0);
     char* val = desmos_value_string(&inst->src);
-    cond->out = desmos_assign(desmos_mallocd_sprintf(
-      "r,%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
-      DESMOS_REGISTERS
-      "\\\\left[%d\\\\right]+%s\\\\right)", 
+    desmos_assign(desmos_mallocd_sprintf(
+      DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
+        DESMOS_REGISTERS "\\\\left[%d\\\\right]+%s"
+      "\\\\right)",
       inst->dst.reg, inst->dst.reg, val
     ));
     free(val);
     break;
 
   case SUB:
-    emit_line("%s = (%s - %s) & " UINT_MAX_STR ";",
-              reg_names[inst->dst.reg],
-              reg_names[inst->dst.reg], src_str(inst));
+    DesmosCondition *cond = desmos_inst_cond(inst, 0);
+    char* val = desmos_value_string(&inst->src);
+    desmos_assign(desmos_mallocd_sprintf(
+      DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
+        DESMOS_REGISTERS "\\\\left[%d\\\\right]-%s"
+      "\\\\right)",
+      inst->dst.reg, inst->dst.reg, val
+    ));
+    free(val);
     break;
 
   case LOAD:
