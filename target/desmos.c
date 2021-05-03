@@ -9,7 +9,13 @@
 #define DESMOS_MAX_ARRAY_LEN 100
 #define DESMOS_MAX_ARRAY_LEN_STR "100"
 #define DESMOS_NUM_MEMCHUNKS 3
+// Desmos function names
 #define DESMOS_OVERFLOW_CHECK_FUNC "w"
+#define DESMOS_REGISTERS "r"
+#define DESMOS_ASSIGN "a"
+#define DESMOS_ASSIGN_SUB "a_{1}"
+#define DESMOS_MEM_ACCESSOR "g"
+#define DESMOS_MEM_FMT "m_{em%d}"
 
 // DESMOS_NUM_MEMCHUNKS + 1 for registers
 #define DESMOS_COND_SIZE (DESMOS_NUM_MEMCHUNKS + 1)
@@ -134,7 +140,7 @@ void desmos_init_mainloop(void) {
 
 void desmos_init_registers(void) {
   desmos_start_expression();
-  fputs("r=\\\\left[", stdout);
+  fputs(DESMOS_REGISTERS "=\\\\left[", stdout);
   // 1 running bool, 7 registers
   for (int i = 0; i < 7; i++) {
     fputs("0,", stdout);
@@ -146,7 +152,7 @@ void desmos_init_registers(void) {
 
 void desmos_start_memchunk(int memchunk) {
   desmos_start_expression();
-  printf("m_{em%d}=", memchunk);
+  printf(DESMOS_MEM_FMT "=", memchunk);
 }
 
 void desmos_init_mem(Data *data) {
@@ -272,20 +278,21 @@ void desmos_emit_pc_change(int pc) {
 
 void desmos_emit_assign_function(void) {
   desmos_start_expression();
-  fputs("a_{1}\\\\left(l_{asn},i_{asn},v_{asn},t_{asn}\\\\right)=\\\\sum_{n=t_{asn}}^{"
+  fputs(DESMOS_ASSIGN_SUB "\\\\left(l_{asn},i_{asn},v_{asn},t_{asn}\\\\right)=\\\\sum_{n=t_{asn}}^{"
         "t_{asn}}\\\\left\\\\{i_{asn}=n:v_{asn},l_{asn}\\\\left[n\\\\right]\\\\right\\"
         "\\}", stdout);
   desmos_end_expression();
   desmos_start_expression();
-  fputs("a\\\\left(l_{asn},i_{asn},v_{asn}\\\\right)=a_{1}\\\\left(l_{asn},i_{asn"
-        "},v_{asn},\\\\left[1,...,\\\\operatorname{length}\\\\left(l_{asn}\\\\right)\\"
-        "\\right]\\\\right)", stdout);
+  fputs(DESMOS_ASSIGN "\\\\left(l_{asn},i_{asn},v_{asn}\\\\right)=" DESMOS_ASSIGN_SUB 
+        "\\\\left(l_{asn},i_{asn},v_{asn},\\\\left[1,...,\\\\operatorname{length}"
+        "\\\\left(l_{asn}\\\\right)\\\\right]\\\\right)", stdout);
   desmos_end_expression();
 }
 
 void desmos_emit_mem_accessor(void) {
   desmos_start_expression();
-  fputs("g\\\\left(l\\\\right)=b\\\\left(\\\\operatorname{floor}\\\\left(\\\\frac{l}{"
+  fputs(DESMOS_MEM_ACCESSOR "\\\\left(l\\\\right)=b\\\\left(\\\\operatorname{floor}"
+    "\\\\left(\\\\frac{l}{"
     DESMOS_MAX_ARRAY_LEN_STR
     "}\\\\right)\\\\right)\\\\left[\\\\operatorname{mod}\\\\left(l,"
     DESMOS_MAX_ARRAY_LEN_STR
@@ -297,7 +304,7 @@ void desmos_emit_mem_accessor(void) {
     if (i != 0) {
       putchar(',');
     }
-    printf("\\\\left\\\\{l=%d:m_{em%d}", i, i);
+    printf("\\\\left\\\\{l=%d:" DESMOS_MEM_FMT, i, i);
   }
   for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
     fputs("\\\\right\\\\}", stdout);
@@ -371,7 +378,9 @@ void desmos_emit_inst(Inst* inst) {
       //emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
       DesmosCondition *cond = desmos_inst_cond(inst, 0);
       char* val = desmos_value_string(&inst->src);
-      cond->out = desmos_assign(desmos_mallocd_sprintf("r,%d,%s", inst->dst.reg, val));
+      cond->out = desmos_assign(desmos_mallocd_sprintf(
+        DESMOS_REGISTERS ",%d,%s", inst->dst.reg, val
+      ));
       free(val);
     }
     break;
@@ -383,7 +392,9 @@ void desmos_emit_inst(Inst* inst) {
     DesmosCondition *cond = desmos_inst_cond(inst, 0);
     char* val = desmos_value_string(&inst->src);
     cond->out = desmos_assign(desmos_mallocd_sprintf(
-      "r,%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left(r\\\\left[%d\\\\right]+%s\\\\right)", 
+      "r,%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
+      DESMOS_REGISTERS
+      "\\\\left[%d\\\\right]+%s\\\\right)", 
       inst->dst.reg, inst->dst.reg, val
     ));
     free(val);
