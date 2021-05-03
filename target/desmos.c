@@ -9,6 +9,7 @@
 #define DESMOS_MAX_ARRAY_LEN 100
 #define DESMOS_MAX_ARRAY_LEN_STR "100"
 #define DESMOS_NUM_MEMCHUNKS 3
+#define DESMOS_OVERFLOW_CHECK_FUNC "w"
 
 // DESMOS_NUM_MEMCHUNKS + 1 for registers
 #define DESMOS_COND_SIZE (DESMOS_NUM_MEMCHUNKS + 1)
@@ -304,6 +305,12 @@ void desmos_emit_mem_accessor(void) {
   desmos_end_expression();
 }
 
+void desmos_emit_overflow_check(void) {
+  desmos_start_expression();
+  fputs(DESMOS_OVERFLOW_CHECK_FUNC "\\\\left(n\\\\right)=\\\\operatorname{mod}\\\\left"
+        "(n," UINT_MAX_STR "\\\\right)", stdout);
+}
+
 char* desmos_mallocd_sprintf(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
@@ -335,6 +342,12 @@ DesmosCondition* desmos_alloc_cond(int memchunk) {
   return cond;
 }
 
+DesmosCondition* desmos_inst_cond(Inst* inst, int memchunk) {
+  DesmosCondition *cond = desmos_alloc_cond(memchunk);
+  cond->cond = desmos_mallocd_sprintf("m=%d", inst->pc);
+  return cond;
+}
+
 char* desmos_value_string(Value* v) {
   if (v->type == REG) {
     return desmos_mallocd_sprintf("r\\\\left[%d\\\\right]", v->reg + 1);
@@ -356,8 +369,7 @@ void desmos_emit_inst(Inst* inst) {
   case MOV:
     {
       //emit_line("%s = %s;", reg_names[inst->dst.reg], src_str(inst));
-      DesmosCondition *cond = desmos_alloc_cond(0);
-      cond->cond = desmos_mallocd_sprintf("m=%d", inst->pc);
+      DesmosCondition *cond = desmos_inst_cond(inst, 0);
       char* val = desmos_value_string(&inst->src);
       cond->out = desmos_assign(desmos_mallocd_sprintf("r,%d,%s", inst->dst.reg, val));
       free(val);
@@ -368,6 +380,13 @@ void desmos_emit_inst(Inst* inst) {
     emit_line("%s = (%s + %s) & " UINT_MAX_STR ";",
               reg_names[inst->dst.reg],
               reg_names[inst->dst.reg], src_str(inst));
+    DesmosCondition *cond = desmos_inst_cond(inst, 0);
+    char* val = desmos_value_string(&inst->src);
+    cond->out = desmos_assign(desmos_mallocd_sprintf(
+      "r,%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left(r\\\\left[%d\\\\right]+%s\\\\right)", 
+      inst->dst.reg, inst->dst.reg, val
+    ));
+    free(val);
     break;
 
   case SUB:
