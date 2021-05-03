@@ -141,12 +141,12 @@ void desmos_init_mainloop(void) {
 void desmos_init_registers(void) {
   desmos_start_expression();
   fputs(DESMOS_REGISTERS "=\\\\left[", stdout);
-  // 1 running bool, 7 registers
-  for (int i = 0; i < 7; i++) {
+  // 7 registers, then one running bool
+  for (int i = 0; i < 6; i++) {
     fputs("0,", stdout);
   }
   // pc starts at -1 to init running to true
-  fputs("-1\\\\right]", stdout);
+  fputs("-1,0\\\\right]", stdout);
   desmos_end_expression();
 }
 
@@ -366,7 +366,7 @@ char* desmos_value_string(Value* v) {
 }
 
 char* desmos_assign(char *args) {
-  char* r = desmos_mallocd_sprintf("a\\\\left(%s\\\\right)", args);
+  char* r = desmos_mallocd_sprintf(DESMOS_ASSIGN "\\\\left(%s\\\\right)", args);
   free(args);
   return r;
 }
@@ -388,7 +388,7 @@ void desmos_emit_inst(Inst* inst) {
   case ADD:
     DesmosCondition *cond = desmos_inst_cond(inst, 0);
     char* val = desmos_value_string(&inst->src);
-    desmos_assign(desmos_mallocd_sprintf(
+    cond->out = desmos_assign(desmos_mallocd_sprintf(
       DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
         DESMOS_REGISTERS "\\\\left[%d\\\\right]+%s"
       "\\\\right)",
@@ -400,7 +400,7 @@ void desmos_emit_inst(Inst* inst) {
   case SUB:
     DesmosCondition *cond = desmos_inst_cond(inst, 0);
     char* val = desmos_value_string(&inst->src);
-    desmos_assign(desmos_mallocd_sprintf(
+    cond->out = desmos_assign(desmos_mallocd_sprintf(
       DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC "\\\\left("
         DESMOS_REGISTERS "\\\\left[%d\\\\right]-%s"
       "\\\\right)",
@@ -410,7 +410,14 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
-    emit_line("%s = mem[%s];", reg_names[inst->dst.reg], src_str(inst));
+    DesmosCondition *cond = desmos_inst_cond(inst, 0);
+    char* val = desmos_value_string(&inst->src);
+    cond->out = desmos_assign(desmos_mallocd_sprintf(
+      DESMOS_REGISTERS ",%d," DESMOS_MEM_ACCESSOR "\\\\left("
+        "%s"
+      "\\\\right)",
+      inst->dst.reg, val 
+    ));
     break;
 
   case STORE:
@@ -474,10 +481,10 @@ void desmos_emit_function_finder(int num_funcs) {
   desmos_end_expression();
   desmos_start_expression();
   // Having a second function helps save size because p is much shorter than accessing
-  //  r[0]
+  //  r[7]
   // If pc == -1, set running to 1 and pc to 0
-  fputs("u\\\\left(m,o\\\\right)=\\\\left\\\\{r\\\\left[8\\\\right]=-1:"
-        "a\\\\left(a\\\\left(r,1,1\\\\right),8,0\\\\right),"
+  fputs("u\\\\left(m,o\\\\right)=\\\\left\\\\{r\\\\left[7\\\\right]=-1:"
+        "a\\\\left(a\\\\left(r,8,1\\\\right),7,0\\\\right),"
         "u_{1}\\\\left(r\\\\left[1\\\\right],m,o\\\\right)\\\\right\\\\}", stdout);
   desmos_end_expression();
 }
