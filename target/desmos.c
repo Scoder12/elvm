@@ -241,8 +241,10 @@ void desmos_init_mem(Data *data) {
 typedef struct DesmosCondition_
 {
   // unused if in register_conds
+  bool free_mem_cond;
   char *mem_cond;
   int pc;
+  bool free_out;
   char *out;
   struct DesmosCondition_ *next;
 } DesmosCondition;
@@ -263,8 +265,12 @@ void desmos_free_cond(DesmosCondition **cond) {
   while (head != NULL) {
     tmp = head;
     head = head->next;
-    free(tmp->mem_cond);
-    free(tmp->out);
+    if (tmp->mem_cond != NULL && tmp->free_mem_cond) {
+      free(tmp->mem_cond);
+    }
+    if (tmp->out != NULL && tmp->free_out) {
+      free(tmp->out);
+    }
     free(tmp);
   }
   *cond = NULL; // no use-after-free
@@ -464,18 +470,22 @@ DesmosCondition* desmos_append_cond(DesmosCondition **base) {
   return cond;
 }
 
-DesmosCondition* desmos_append_reg_cond(Inst* inst, char *out) {
+DesmosCondition* desmos_append_reg_cond(Inst* inst, char *out, bool free_out) {
   DesmosCondition *cond = desmos_append_cond(&desmos_register_conds);
   cond->pc = inst->pc;
   cond->out = out;
+  cond->free_mem_cond = false;
+  cond->free_out = free_out;
   return cond;
 }
 
-DesmosCondition* desmos_append_mem_cond(Inst *inst, char *mem_cond, char *out) {
+DesmosCondition* desmos_append_mem_cond(Inst *inst, char *mem_cond, bool free_mem_cond, char *out, bool free_out) {
   DesmosCondition* cond = desmos_append_cond(&desmos_mem_conds);
   cond->pc = inst->pc;
-  cond->mem_cond = mem_cond;
   cond->out = out;
+  cond->free_mem_cond = free_mem_cond;
+  cond->free_out = free_out;
+  cond->mem_cond = mem_cond;
   return cond;
 }
 
@@ -504,7 +514,7 @@ void desmos_reg_out(Inst *inst, char *new_val) {
   desmos_append_reg_cond(inst, desmos_mallocd_sprintf(
     DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d,%s\\\\right)",
     inst->dst.reg, new_val
-  ));
+  ), true);
   free(new_val);
 }
 
@@ -514,7 +524,7 @@ void desmos_overflowed_reg_out(Inst *inst, char *join) {
     DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC 
     "\\\\left(" DESMOS_REGISTERS "\\\\left[%d\\\\right]%s%s\\\\right)\\\\right)",
     inst->dst.reg, inst->dst.reg, join, val
-  ));
+  ), true);
   free(val);
 }
 
@@ -585,7 +595,7 @@ void desmos_emit_inst(Inst* inst) {
 
   case STORE:
     desmos_append_mem_cond(
-      inst, desmos_gen_mem_cond(inst), desmos_gen_mem_assign(inst)
+      inst, desmos_gen_mem_cond(inst), true, desmos_gen_mem_assign(inst), true
     );
     break;
 
@@ -593,7 +603,9 @@ void desmos_emit_inst(Inst* inst) {
     desmos_append_mem_cond(
       inst, 
       "m=" DESMOS_STDOUT_MODE, 
-      desmos_mallocd_sprintf(DESMOS_APPEND "\\\\left(o,%s\\\\right)", desmos_src(inst))
+      false,
+      desmos_mallocd_sprintf(DESMOS_APPEND "\\\\left(o,%s\\\\right)", desmos_src(inst)),
+      true
     );
     break;
 
@@ -608,14 +620,14 @@ void desmos_emit_inst(Inst* inst) {
     );
     // Remove the first char of stdin
     desmos_append_mem_cond(
-      inst, "m=" DESMOS_STDIN_MODE, 
-      desmos_mallocd_sprintf(DESMOS_POP "\\\\left(o\\\\right)")
+      inst, "m=" DESMOS_STDIN_MODE, false,
+      desmos_mallocd_sprintf(DESMOS_POP "\\\\left(o\\\\right)"), true
     );
     break;
 
   case EXIT:
     desmos_append_reg_cond(
-      inst, DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right)"
+      inst, DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right)", false
     );
     break;
 
