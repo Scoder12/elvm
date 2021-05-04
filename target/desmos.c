@@ -22,9 +22,9 @@
 #define DESMOS_MEM_ACCESSOR "g"
 #define DESMOS_GET_MEMCHUNK_NUM "c"
 #define DESMOS_GET_MEMCHUNK "t"
-#define DESMOS_APPEND "h"
+#define DESMOS_APPEND "d"
 #define DESMOS_POP "p"
-#define DESMOS_INS_CHECK "m"
+#define DESMOS_INS_CHECK "k"
 
 #define DESMOS_MEM_FMT "m_{em%d}"
 #define DESMOS_MAX_ARRAY_LEN_CONST "b"
@@ -251,20 +251,7 @@ void desmos_emit_func_prologue(int func_id) {
 }
 
 void desmos_emit_func_epilogue(void) {
-  if (ins_id == 0) {
-    // odd, not a single instruction was emitted.
-    fputs("o", stdout);
-  } else {
-    // If instruction pointer gets here, set it to 0 and increment pc
-    fputs(",\\\\left\\\\{" DESMOS_REGISTERS "\\\\left[9\\\\right]=", stdout);
-    printf("%d", ins_id);
-    fputs(
-      ":\\\\left\\\\{m=0:" DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left("
-      DESMOS_REGISTERS ",9,0\\\\right),7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1"
-      "\\\\right),o\\\\right\\\\},o\\\\right\\\\}", 
-      stdout
-    );
-  }
+  fputs("o", stdout);
 
   for (int i = 0; i < brackets_to_close; i++) {
     fputs("\\\\right\\\\}", stdout);
@@ -275,7 +262,20 @@ void desmos_emit_func_epilogue(void) {
 #define UNUSED(x) (void)(x)
 
 void desmos_emit_pc_change(int pc) {
-  UNUSED(pc);
+  fprintf(stderr, "pc change pc=%d\n", pc);
+  if (pc != 0) {
+    printf(
+      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", pc - 1, ins_id
+    );
+    fputs(
+      DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left("
+      DESMOS_REGISTERS ",9,0\\\\right),7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1"
+      "\\\\right),", 
+      stdout
+    );
+    ins_id = 0;
+    brackets_to_close++;
+  }
 }
 
 void desmos_emit_assign_function(void) {
@@ -409,7 +409,7 @@ void desmos_src(Inst* inst) {
 
 void desmos_reg_out(Inst *inst) {
   printf(
-    "\\\\left{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
+    "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
     DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d,", 
     inst->pc, 
     ins_id, 
@@ -420,7 +420,7 @@ void desmos_reg_out(Inst *inst) {
 
 void desmos_overflowed_reg_out(Inst *inst, char *join) {
   printf(
-    "\\\\left{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
+    "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
     DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC 
     "\\\\left(%d%s", 
     inst->pc, 
@@ -454,17 +454,16 @@ void desmos_emit_mem_cond(Inst *inst) {
   brackets_to_close++;
 }
 
-char* desmos_emit_mem_assign(Inst *inst) {
+void desmos_emit_mem_assign(Inst *inst) {
   fputs(DESMOS_ASSIGN "\\\\left(o,\\\\operatorname{mod}\\\\left(", stdout);
   desmos_src(inst);
   fputs("," DESMOS_MAX_ARRAY_LEN_CONST "\\\\right),", stdout);
   desmos_value_string(&inst->dst);
   fputs("\\\\right),", stdout);
-
 }
 
 void desmos_emit_inst(Inst* inst) {
-  fprintf(stderr, "Emit instruction pc=%d\n", inst->pc);
+  fprintf(stderr, "Emit instruction pc=%d iid=%d src=%d\n", inst->pc, ins_id, inst->src.type == REG);
 
   switch (inst->op) {
   case MOV:
@@ -498,7 +497,7 @@ void desmos_emit_inst(Inst* inst) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDOUT_MODE ",",
       stdout
     );
-    printf("%d,%d\\\\right):" DESMOS_POP "\\\\left(o\\\\right),", inst->pc, ins_id);
+    printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc, ins_id);
     brackets_to_close++;
     fputs(DESMOS_APPEND "\\\\left(o,", stdout);
     desmos_src(inst);
@@ -519,20 +518,16 @@ void desmos_emit_inst(Inst* inst) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE ",",
       stdout
     );
-    printf("%d,%d\\\\right):" DESMOS_POP "\\\\left(o\\\\right),", inst->pc, ins_id);
+    printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc, ins_id);
     brackets_to_close++;
     break;
 
   case EXIT:
-    desmos_append_reg_cond(
-      inst, DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right)", false
-    );
-
     printf(
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", inst->pc, ins_id
     );
     brackets_to_close++;
-    fputs(DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right),", true);
+    fputs(DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right),", stdout);
     break;
 
   case DUMP:
@@ -563,9 +558,9 @@ void desmos_emit_inst(Inst* inst) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,",
       stdout
     );
-    printf("%d,%d\\\\right):" DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",7,", inst->pc, ins_id);
+    printf("%d,%d\\\\right)=1:" DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",7,", inst->pc, ins_id);
     brackets_to_close++;
-    desmos_src(inst);
+    desmos_value_string(&inst->jmp);
     fputs("-1\\\\right),", stdout);
     break;
 
@@ -608,6 +603,7 @@ void target_desmos(Module *module) {
   desmos_emit_assign_function();
   desmos_emit_append_function();
   desmos_emit_mem_accessor();
+  desmos_emit_instruction_check();
   desmos_emit_overflow_check();
   desmos_emit_array_len_const();
   desmos_init_mem(module->data);
@@ -621,5 +617,4 @@ void target_desmos(Module *module) {
                                          desmos_emit_inst);
   desmos_emit_function_finder(num_funcs);
   desmos_end_graph();
-  desmos_free_conds();
 }
