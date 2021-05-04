@@ -21,7 +21,7 @@
 #define DESMOS_ASSIGN_SUB "a_{1}"
 #define DESMOS_MEM_ACCESSOR "g"
 #define DESMOS_GET_MEMCHUNK_NUM "c"
-#define DESMOS_GET_MEMCHUNK "b"
+#define DESMOS_GET_MEMCHUNK "t"
 #define DESMOS_APPEND "h"
 #define DESMOS_POP "p"
 
