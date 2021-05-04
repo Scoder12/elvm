@@ -143,6 +143,20 @@ void desmos_init_mainloop(void) {
   desmos_start_simulation_rule(sim_start, "r");
   fputs("u\\\\left(0,r\\\\right)", stdout);
   desmos_end_simulation_rule();
+  desmos_start_simulation_rule(sim_start, DESMOS_STDIN);
+  fputs("u\\\\left(1," DESMOS_STDIN "\\\\right)", stdout);
+  desmos_end_simulation_rule();
+  desmos_start_simulation_rule(sim_start, DESMOS_STDIN);
+  fputs("u\\\\left(2," DESMOS_STDOUT "\\\\right)", stdout);
+  desmos_end_simulation_rule();
+
+  for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
+    char *memchunk_name = desmos_mallocd_sprintf(DESMOS_MEM_FMT, i);
+    desmos_start_simulation_rule(sim_start, memchunk_name);
+    printf("u\\\\left(%d,%s\\\\right)", i + 3, memchunk_name);
+    free(memchunk_name);
+    desmos_end_simulation_rule();
+  }
   desmos_end_simulation();
 }
 
