@@ -362,9 +362,11 @@ void desmos_emit_append_function(void) {
 void desmos_emit_pop_function(void) {
   desmos_start_expression();
   fputs(
-    DESMOS_POP "\\\\left(l_{s}\\\\right)=\\\\sum_{n=\\\\left[1,...,\\\\operatorname{length}"
+    DESMOS_POP "\\\\left(l_{s}\\\\right)=\\\\left\\\\{\\\\operatorname{length}"
+    "\\\\left(l_{s}\\\\right)>0:\\\\sum_{n=\\\\left[1,...,\\\\operatorname{length}"
     "\\\\left(l_{s}\\\\right)-1\\\\right]}^{\\\\left[1,...,\\\\operatorname{length}"
-    "\\\\left(l_{s}\\\\right)-1\\\\right]}l_{s}\\\\left[n+1\\\\right]", 
+    "\\\\left(l_{s}\\\\right)-1\\\\right]}l_{s}\\\\left[n+1\\\\right],l_{s}\\\\right"
+    "\\\\}",
     stdout
   );
   desmos_end_expression();
