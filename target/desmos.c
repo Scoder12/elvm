@@ -22,7 +22,8 @@
 #define DESMOS_MEM_ACCESSOR "g"
 #define DESMOS_GET_MEMCHUNK_NUM "c"
 #define DESMOS_GET_MEMCHUNK "b"
-#define DESMOS_APPEND "p"
+#define DESMOS_APPEND "h"
+#define DESMOS_POP "p"
 
 #define DESMOS_MEM_FMT "m_{em%d}"
 #define DESMOS_MAX_ARRAY_LEN_CONST "b"
@@ -358,6 +359,17 @@ void desmos_emit_append_function(void) {
   desmos_end_expression();
 }
 
+void desmos_emit_pop_function(void) {
+  desmos_start_expression();
+  fputs(
+    DESMOS_POP "\\\\left(l_{s}\\\\right)=\\\\sum_{n=\\\\left[1,...,\\\\operatorname{length}"
+    "\\\\left(l_{s}\\\\right)-1\\\\right]}^{\\\\left[1,...,\\\\operatorname{length}"
+    "\\\\left(l_{s}\\\\right)-1\\\\right]}l_{s}\\\\left[n+1\\\\right]", 
+    stdout
+  );
+  desmos_end_expression();
+}
+
 void desmos_emit_mem_accessor(void) {
   desmos_start_expression();
   fputs(
@@ -486,12 +498,12 @@ char* desmos_assign(char *args) {
 }
 
 // convienience function for reg = tranform(reg)
-void desmos_reg_out(Inst *inst, char *new) {
+void desmos_reg_out(Inst *inst, char *new_val) {
   desmos_append_reg_cond(inst, desmos_mallocd_sprintf(
     DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d,%s\\\\right)",
-    inst->dst.reg, new
+    inst->dst.reg, new_val
   ));
-  free(new);
+  free(new_val);
 }
 
 void desmos_overflowed_reg_out(Inst *inst, char *join) {
@@ -586,6 +598,12 @@ void desmos_emit_inst(Inst* inst) {
   case GETC:
     emit_line("%s = getchar();",
               reg_names[inst->dst.reg]);
+    desmos_reg_out(inst, DESMOS_STDIN "\\\\left[1\\\\right]");
+    // Remove the first char of stdin
+    desmos_append_mem_cond(
+      inst, "m=" DESMOS_STDIN_MODE, 
+      desmos_mallocd_sprintf(DESMOS_POP "\\\\left(o\\\\right)")
+    );
     break;
 
   case EXIT:
