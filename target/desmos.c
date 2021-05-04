@@ -144,6 +144,18 @@ void desmos_end_list(void) {
   fputs("\\\\right]", stdout);
 }
 
+char* desmos_mallocd_sprintf(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+  size_t needed = vsnprintf(NULL, 0, fmt, ap);
+  va_end(ap);
+  char* data = malloc(needed + 1);
+  va_start(ap, fmt);
+  vsprintf(data, fmt, ap);
+  va_end(ap);
+  return data;
+}
+
 void desmos_init_mainloop(void) {
   desmos_start_simulation();
   int sim_start = exp_id;
@@ -431,18 +443,6 @@ void desmos_init_io(void) {
   desmos_start_expression();
   fputs(DESMOS_STDOUT "=\\\\left[\\\\right]", stdout);
   desmos_end_expression();
-}
-
-char* desmos_mallocd_sprintf(const char *fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-  size_t needed = vsnprintf(NULL, 0, fmt, ap);
-  va_end(ap);
-  char* data = malloc(needed + 1);
-  va_start(ap, fmt);
-  vsprintf(data, fmt, ap);
-  va_end(ap);
-  return data;
 }
 
 DesmosCondition* desmos_append_cond(DesmosCondition **base) {
