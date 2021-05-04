@@ -25,6 +25,7 @@
 #define DESMOS_APPEND "d"
 #define DESMOS_POP "p"
 #define DESMOS_INS_CHECK "k"
+#define DESMOS_INC_IID "f"
 
 #define DESMOS_MEM_FMT "m_{em%d}"
 #define DESMOS_MAX_ARRAY_LEN_CONST "b"
@@ -269,7 +270,7 @@ void desmos_emit_pc_change(int pc) {
     );
     fputs(
       DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left("
-      DESMOS_REGISTERS ",9,0\\\\right),7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1"
+      DESMOS_REGISTERS ",9,-1\\\\right),7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1"
       "\\\\right),", 
       stdout
     );
@@ -584,11 +585,20 @@ void desmos_emit_function_finder(int num_funcs) {
   }
   desmos_end_expression();
   desmos_start_expression();
+  fputs(
+    DESMOS_INC_IID "\\\\left(m,o\\\\right)=\\\\left\\\\{m=0:" DESMOS_ASSIGN "\\\\left("
+    "o,9,o\\\\left[9\\\\right]+1\\\\right),o"
+    "\\\\right\\\\}",
+    stdout
+  );
+  desmos_end_expression();
+  desmos_start_expression();
   // Having a second function helps save size because p is much shorter than accessing
   //  r[7]
   // If pc == -1, set running to 1 and pc to 0
   fputs("u\\\\left(m,o\\\\right)="
-        "\\\\left\\\\{r[8]=1:u_{1}\\\\left(r\\\\left[1\\\\right],m,o\\\\right),o"
+        "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID "\\\\left(m,u_{1}\\\\left(r\\\\left[1"
+        "\\\\right],m,o\\\\right)\\\\right),o"
         "\\\\right\\\\}", stdout);
   desmos_end_expression();
 }
