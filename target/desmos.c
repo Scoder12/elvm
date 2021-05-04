@@ -20,6 +20,8 @@
 
 #define DESMOS_MEM_FMT "m_{em%d}"
 #define DESMOS_MAX_ARRAY_LEN_CONST "b"
+#define DESMOS_STDIN "s_{tdin}"
+#define DESMOS_STDOUT "s_{tdout}"
 
 #define DESMOS_MODE_REGISTERS "m=0"
 
@@ -364,6 +366,18 @@ void desmos_emit_overflow_check(void) {
 void desmos_emit_array_len_const(void) {
   desmos_start_expression();
   fputs(DESMOS_MAX_ARRAY_LEN_CONST "=" DESMOS_MAX_ARRAY_LEN_STR, stdout);
+  desmos_end_expression();
+}
+
+void desmos_init_io(void) {
+  // stdin
+  desmos_start_expression();
+  fputs(DESMOS_STDIN "=\\\\left[\\\\right]", stdout);
+  desmos_end_expression();
+
+  // stdout
+  desmos_start_expression();
+  fputs(DESMOS_STDOUT "=\\\\left[\\\\right]", stdout);
   desmos_end_expression();
 }
 
