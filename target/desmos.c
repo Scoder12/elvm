@@ -596,10 +596,13 @@ void desmos_emit_function_finder(int num_funcs) {
   // Having a second function helps save size because p is much shorter than accessing
   //  r[7]
   // If pc == -1, set running to 1 and pc to 0
-  fputs("u\\\\left(m,o\\\\right)="
-        "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID "\\\\left(m,u_{1}\\\\left(r\\\\left[1"
-        "\\\\right],m,o\\\\right)\\\\right),o"
-        "\\\\right\\\\}", stdout);
+  printf(
+    "u\\\\left(m,o\\\\right)="
+    "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID "\\\\left(m,u_{1}\\\\left(\\\\operatorname"
+    "{floor}\\\\left(\\\\frac{r\\\\left[1\\\\right]}{%d}\\\\right),m,o\\\\right)"
+    "\\\\right),o\\\\right\\\\}", 
+    CHUNKED_FUNC_SIZE
+  );
   desmos_end_expression();
 }
 
