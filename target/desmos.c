@@ -293,17 +293,17 @@ void desmos_emit_cond(DesmosCondition* cond, bool use_condition) {
   int brackets_to_close = 0;
   for (DesmosCondition* head = cond; head != NULL; head = head->next) {
     // check pc == cond->pc
-    printf("\\\\left\\\\{p=%d:", cond->pc);
+    printf("\\\\left\\\\{p=%d:", head->pc);
     brackets_to_close++;
 
     if (use_condition) {
       // check custom conditon
       fputs("\\\\left\\\\{", stdout);
-      printf("%s:", cond->mem_cond);
+      printf("%s:", head->mem_cond);
     }
 
     // if true, return cond->out
-    printf("%s,", cond->out);
+    printf("%s,", head->out);
 
     if (use_condition) {
       // if pc passes but custom cond doesn't, don't modify
