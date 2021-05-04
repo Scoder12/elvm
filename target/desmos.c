@@ -165,8 +165,8 @@ void desmos_init_mainloop(void) {
   desmos_start_simulation_rule(sim_start, DESMOS_STDIN);
   fputs("u\\\\left(" DESMOS_STDIN_MODE "," DESMOS_STDIN "\\\\right)", stdout);
   desmos_end_simulation_rule();
-  desmos_start_simulation_rule(sim_start, DESMOS_STDIN);
-  fputs("u\\\\left(" DESMOS_STDIN_MODE "," DESMOS_STDOUT "\\\\right)", stdout);
+  desmos_start_simulation_rule(sim_start, DESMOS_STDOUT);
+  fputs("u\\\\left(" DESMOS_STDOUT_MODE "," DESMOS_STDOUT "\\\\right)", stdout);
   desmos_end_simulation_rule();
 
   for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
@@ -692,6 +692,7 @@ void desmos_emit_function_finder(int num_funcs) {
 
 void target_desmos(Module *module) {
   desmos_init_graph();
+  desmos_init_io();
   // Desmos functions are position independent so might as well put the mainloop at the
   //  beginning to look nice
   desmos_init_mainloop();
