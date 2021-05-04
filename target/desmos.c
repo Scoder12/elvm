@@ -614,7 +614,9 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case EXIT:
-    emit_line("running = false; break;");
+    desmos_append_reg_cond(
+      inst, DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right)"
+    );
     break;
 
   case DUMP:
@@ -665,7 +667,8 @@ void desmos_emit_function_finder(int num_funcs) {
   // If pc == -1, set running to 1 and pc to 0
   fputs("u\\\\left(m,o\\\\right)=\\\\left\\\\{r\\\\left[7\\\\right]=-1:"
         "a\\\\left(a\\\\left(r,8,1\\\\right),7,0\\\\right),"
-        "u_{1}\\\\left(r\\\\left[1\\\\right],m,o\\\\right)\\\\right\\\\}", stdout);
+        "\\\\left\\\\{r[8]=1:u_{1}\\\\left(r\\\\left[1\\\\right],m,o\\\\right),o"
+        "\\\\right\\\\}\\\\right\\\\}", stdout);
   desmos_end_expression();
 }
 
