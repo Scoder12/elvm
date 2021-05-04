@@ -567,6 +567,8 @@ char* desmos_gen_mem_assign(Inst *inst) {
 }
 
 void desmos_emit_inst(Inst* inst) {
+  fprintf(stderr, "Emit instruction pc=%d\n", inst->pc);
+
   switch (inst->op) {
   case MOV:
     desmos_reg_out(inst, desmos_src(inst));
