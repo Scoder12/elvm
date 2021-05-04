@@ -19,6 +19,7 @@
 #define DESMOS_GET_MEMCHUNK "b"
 
 #define DESMOS_MEM_FMT "m_{em%d}"
+#define DESMOS_MAX_ARRAY_LEN_CONST "b"
 
 #define DESMOS_MODE_REGISTERS "m=0"
 
@@ -193,9 +194,9 @@ void desmos_init_mem(Data *data) {
   while (memchunk < DESMOS_NUM_MEMCHUNKS) {
     desmos_start_memchunk(memchunk);
     fputs("\\\\sum_{n=\\\\left[1,..."
-          DESMOS_MAX_ARRAY_LEN_STR
+          DESMOS_MAX_ARRAY_LEN_CONST
           "\\\\right]}^{\\\\left[1,..."
-          DESMOS_MAX_ARRAY_LEN_STR
+          DESMOS_MAX_ARRAY_LEN_CONST
           "\\\\right]}0", stdout);
     desmos_end_expression();
     memchunk++;
@@ -324,14 +325,14 @@ void desmos_emit_mem_accessor(void) {
     DESMOS_MEM_ACCESSOR "\\\\left(l\\\\right)=" DESMOS_GET_MEMCHUNK "\\\\left("
     // minus one because GET_MEMCHUNK_NUM returns +1
     DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)-1\\\\right)\\\\left["
-    "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_STR "\\\\right)\\\\right]",
+    "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST "\\\\right)\\\\right]",
     stdout);
   desmos_end_expression();
   desmos_start_expression();
   fputs(
     DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)=\\\\operatorname{floor}"
     "\\\\left(\\\\frac{l}{"
-    DESMOS_MAX_ARRAY_LEN_STR
+    DESMOS_MAX_ARRAY_LEN_CONST
     // + 1 to save space when comparing the result of this function against mode
     //  since m=0 is registers and m=1 is memchunk 0, and GET_MEMCHUNK_NUM(n)+1
     //  would be needed to account for registers. When actually accessing this is
@@ -357,6 +358,13 @@ void desmos_emit_overflow_check(void) {
   desmos_start_expression();
   fputs(DESMOS_OVERFLOW_CHECK_FUNC "\\\\left(n\\\\right)=\\\\operatorname{mod}\\\\left"
         "(n," UINT_MAX_STR "\\\\right)", stdout);
+  desmos_end_expression();
+}
+
+void desmos_emit_array_len_const(void) {
+  desmos_start_expression();
+  fputs(DESMOS_MAX_ARRAY_LEN_CONST "=" DESMOS_MAX_ARRAY_LEN_STR, stdout);
+  desmos_end_expression();
 }
 
 char* desmos_mallocd_sprintf(const char *fmt, ...) {
@@ -475,7 +483,7 @@ char* desmos_gen_mem_assign(Inst *inst) {
   // TODO: Assign max array len to a variable so it can be reused easily
   char *ret = desmos_mallocd_sprintf(
     DESMOS_ASSIGN "\\\\left(o,\\\\operatorname{mod}\\\\left(%s," 
-    DESMOS_MAX_ARRAY_LEN_STR "\\\\right),%s\\\\right)",
+    DESMOS_MAX_ARRAY_LEN_CONST "\\\\right),%s\\\\right)",
     addr_val,
     val_val
   );
@@ -588,6 +596,8 @@ void target_desmos(Module *module) {
   desmos_init_registers();
   desmos_emit_assign_function();
   desmos_emit_mem_accessor();
+  desmos_emit_overflow_check();
+  desmos_emit_array_len_const();
   desmos_init_mem(module->data);
   // These functions TODO
   //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
