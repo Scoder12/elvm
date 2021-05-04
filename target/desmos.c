@@ -286,7 +286,7 @@ void desmos_emit_func_prologue(int func_id) {
   desmos_free_conds();
   desmos_start_expression();
   // assign is used to increment pc
-  printf("f_{%d}\\\\left(p,m,o\\\\right)=" DESMOS_ASSIGN "\\\\left(", func_id);
+  printf("f_{%d}\\\\left(p,m,o\\\\right)=", func_id);
 }
 
 void desmos_emit_cond(DesmosCondition* cond, bool use_condition) {
@@ -320,9 +320,9 @@ void desmos_emit_cond(DesmosCondition* cond, bool use_condition) {
 
 void desmos_emit_func_epilogue(void) {
   if (desmos_register_conds != NULL) {
-    fputs("\\\\left\\\\{m=0:", stdout);
+    fputs("\\\\left\\\\{m=0:" DESMOS_ASSIGN "\\\\left(", stdout);
     desmos_emit_cond(desmos_register_conds, false);
-    putchar(',');
+    fputs(",7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1\\\\right),", stdout);
   }
 
   if (desmos_mem_conds == NULL) {
@@ -336,8 +336,6 @@ void desmos_emit_func_epilogue(void) {
     fputs("\\\\right\\\\}", stdout);
   }
 
-  // close pc increment assign call from prologue
-  fputs(",7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1\\\\right)", stdout);
   desmos_end_expression();
 }
 
