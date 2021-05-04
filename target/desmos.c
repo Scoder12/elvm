@@ -598,7 +598,12 @@ void desmos_emit_inst(Inst* inst) {
   case GETC:
     emit_line("%s = getchar();",
               reg_names[inst->dst.reg]);
-    desmos_reg_out(inst, DESMOS_STDIN "\\\\left[1\\\\right]");
+    desmos_reg_out(
+      inst, 
+      // ensure we don't load an "undefined"
+      "\\\\left\\\\{" DESMOS_STDIN "\\\\left[1\\\\right]:" DESMOS_STDIN 
+      "\\\\left[1\\\\right],0\\\\right\\\\}"
+    );
     // Remove the first char of stdin
     desmos_append_mem_cond(
       inst, "m=" DESMOS_STDIN_MODE, 
