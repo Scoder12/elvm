@@ -15,6 +15,9 @@
 #define DESMOS_ASSIGN "a"
 #define DESMOS_ASSIGN_SUB "a_{1}"
 #define DESMOS_MEM_ACCESSOR "g"
+#define DESMOS_GET_MEMCHUNK_NUM "c"
+#define DESMOS_GET_MEMCHUNK "b"
+
 #define DESMOS_MEM_FMT "m_{em%d}"
 
 #define DESMOS_MODE_REGISTERS "m=0"
@@ -317,15 +320,27 @@ void desmos_emit_assign_function(void) {
 
 void desmos_emit_mem_accessor(void) {
   desmos_start_expression();
-  fputs(DESMOS_MEM_ACCESSOR "\\\\left(l\\\\right)=b\\\\left(\\\\operatorname{floor}"
+  fputs(
+    DESMOS_MEM_ACCESSOR "\\\\left(l\\\\right)=" DESMOS_GET_MEMCHUNK "\\\\left("
+    // minus one because GET_MEMCHUNK_NUM returns +1
+    DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)-1\\\\right)\\\\left["
+    "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_STR "\\\\right)\\\\right]",
+    stdout);
+  demos_end_expression();
+  desmos_start_expression();
+  fputs(
+    DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)=\\\\operatorname{floor}"
     "\\\\left(\\\\frac{l}{"
     DESMOS_MAX_ARRAY_LEN_STR
-    "}\\\\right)\\\\right)\\\\left[\\\\operatorname{mod}\\\\left(l,"
-    DESMOS_MAX_ARRAY_LEN_STR
-    "\\\\right)\\\\right]", stdout);
+    // + 1 to save space when comparing the result of this function against mode
+    //  since m=0 is registers and m=1 is memchunk 0, and GET_MEMCHUNK_NUM(n)+1
+    //  would be needed to account for registers. When actually accessing this is
+    //  offset. Therefore GET_MEMCHUNK_NUM(0) is actually 1 but becomes 0 before
+    //  being passed to GET_MEMCHUNK.
+    "}\\\\right)+1", stdout);
   desmos_end_expression();
   desmos_start_expression();
-  fputs("b\\\\left(l\\\\right)=", stdout);
+  fputs(DESMOS_GET_MEMCHUNK "\\\\left(l\\\\right)=", stdout);
   for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
     if (i != 0) {
       putchar(',');
@@ -400,6 +415,10 @@ char* desmos_value_string(Value* v) {
   }
 }
 
+char* desmos_src(Inst* inst) {
+  return desmos_value_string(&inst->src);
+}
+
 char* desmos_assign(char *args) {
   char* r = desmos_mallocd_sprintf(DESMOS_ASSIGN "\\\\left(%s\\\\right)", args);
   free(args);
@@ -416,7 +435,7 @@ void desmos_reg_out(Inst *inst, char *new) {
 }
 
 void desmos_overflowed_reg_out(Inst *inst, char *join) {
-  char *val = desmos_value_string(&inst->src);
+  char *val = desmos_src(inst);
   desmos_append_reg_cond(inst, desmos_mallocd_sprintf(
     DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC 
     "\\\\left(" DESMOS_REGISTERS "\\\\left[%d\\\\right]%s%s\\\\right)\\\\right)",
@@ -425,10 +444,50 @@ void desmos_overflowed_reg_out(Inst *inst, char *join) {
   free(val);
 }
 
+char* desmos_gen_mem_cond(Inst *inst) {
+  Value *v = &inst->src;
+  if (v->type == REG) {
+    char *val = desmos_value_string(v);
+    char *ret = desmos_mallocd_sprintf(
+      "m=" DESMOS_GET_MEMCHUNK "\\\\left(%s\\\\right)", 
+      val
+    );
+    free(val);
+    return ret;
+  } else if (v->type == IMM) {
+    // If we know the value at compile time we can save a few bytes and a few CPU
+    //  cycles by hardcoding the memchunk we want
+    return desmos_mallocd_sprintf(
+      "m=%d", 
+      // imm should be >0 so this should floor
+      v->imm / DESMOS_MAX_ARRAY_LEN
+    );
+  } else {
+    error("oops");
+  }
+}
+
+char* desmos_gen_mem_assign(Inst *inst) {
+  Value *addr = &inst->src;
+  Value *val = &inst->dst;
+  char *addr_val = desmos_value_string(addr);
+  char *val_val = desmos_value_string(val);
+  // TODO: Assign max array len to a variable so it can be reused easily
+  char *ret = desmos_mallocd_sprintf(
+    DESMOS_ASSIGN "\\\\left(o,\\\\operatorname{mod}\\\\left(%s," 
+    DESMOS_MAX_ARRAY_LEN_STR "\\\\right),%s\\\\right)",
+    addr_val,
+    val_val
+  );
+  free(addr_val);
+  free(val_val);
+  return ret;
+}
+
 void desmos_emit_inst(Inst* inst) {
   switch (inst->op) {
   case MOV:
-    desmos_reg_out(inst, desmos_value_string(&inst->src));
+    desmos_reg_out(inst, desmos_src(inst));
     break;
 
   case ADD:
@@ -440,7 +499,7 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
-    char *val = desmos_value_string(&inst->src);
+    char *val = desmos_src(inst);
     char *new = desmos_mallocd_sprintf(DESMOS_MEM_ACCESSOR "\\\\left(%s\\\\right)", val);
     free(val);
     desmos_reg_out(inst, new);
@@ -448,6 +507,10 @@ void desmos_emit_inst(Inst* inst) {
 
   case STORE:
     emit_line("mem[%s] = %s;", src_str(inst), reg_names[inst->dst.reg]);
+
+    desmos_append_mem_cond(
+      inst, desmos_gen_mem_cond(inst), desmos_gen_mem_assign(inst)
+    );
     break;
 
   case PUTC:
