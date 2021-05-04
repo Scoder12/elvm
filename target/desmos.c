@@ -326,7 +326,7 @@ void desmos_emit_mem_accessor(void) {
     DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)-1\\\\right)\\\\left["
     "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_STR "\\\\right)\\\\right]",
     stdout);
-  demos_end_expression();
+  desmos_end_expression();
   desmos_start_expression();
   fputs(
     DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)=\\\\operatorname{floor}"
@@ -499,10 +499,12 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case LOAD:
-    char *val = desmos_src(inst);
-    char *new = desmos_mallocd_sprintf(DESMOS_MEM_ACCESSOR "\\\\left(%s\\\\right)", val);
-    free(val);
-    desmos_reg_out(inst, new);
+    {
+      char *val = desmos_src(inst);
+      char *new = desmos_mallocd_sprintf(DESMOS_MEM_ACCESSOR "\\\\left(%s\\\\right)", val);
+      free(val);
+      desmos_reg_out(inst, new);
+    }
     break;
 
   case STORE:
@@ -597,5 +599,5 @@ void target_desmos(Module *module) {
                                          desmos_emit_inst);
   desmos_emit_function_finder(num_funcs);
   desmos_end_graph();
-  desmos_free_current_cond();
+  desmos_free_conds();
 }
