@@ -187,7 +187,7 @@ void desmos_init_registers(void) {
     fputs("0,", stdout);
   }
   // pc starts at -1 to init running to true
-  fputs("-1,0\\\\right]", stdout);
+  fputs("0,1\\\\right]", stdout);
   desmos_end_expression();
 }
 
@@ -683,10 +683,9 @@ void desmos_emit_function_finder(int num_funcs) {
   // Having a second function helps save size because p is much shorter than accessing
   //  r[7]
   // If pc == -1, set running to 1 and pc to 0
-  fputs("u\\\\left(m,o\\\\right)=\\\\left\\\\{r\\\\left[7\\\\right]=-1:\\\\left\\\\{"
-        "m=0:a\\\\left(a\\\\left(r,8,1\\\\right),7,0\\\\right),o\\\\right\\\\},"
+  fputs("u\\\\left(m,o\\\\right)="
         "\\\\left\\\\{r[8]=1:u_{1}\\\\left(r\\\\left[1\\\\right],m,o\\\\right),o"
-        "\\\\right\\\\}\\\\right\\\\}", stdout);
+        "\\\\right\\\\}", stdout);
   desmos_end_expression();
 }
 
