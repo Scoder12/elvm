@@ -293,7 +293,7 @@ void desmos_emit_cond(DesmosCondition* cond, bool use_condition) {
   int brackets_to_close = 0;
   for (DesmosCondition* head = cond; head != NULL; head = head->next) {
     // check pc == cond->pc
-    printf("\\\\left\\{p=%d:", cond->pc);
+    printf("\\\\left\\\\{p=%d:", cond->pc);
     brackets_to_close++;
 
     if (use_condition) {
@@ -320,7 +320,7 @@ void desmos_emit_cond(DesmosCondition* cond, bool use_condition) {
 
 void desmos_emit_func_epilogue(void) {
   if (desmos_register_conds != NULL) {
-    fputs("\\\\left\\{m=0:", stdout);
+    fputs("\\\\left\\\\{m=0:", stdout);
     desmos_emit_cond(desmos_register_conds, false);
     putchar(',');
   }
@@ -333,7 +333,7 @@ void desmos_emit_func_epilogue(void) {
   }
 
   if (desmos_register_conds != NULL) {
-    fputs("\\\\right\\}", stdout);
+    fputs("\\\\right\\\\}", stdout);
   }
 
   // close pc increment assign call from prologue
@@ -612,11 +612,12 @@ void desmos_emit_inst(Inst* inst) {
   case GETC:
     emit_line("%s = getchar();",
               reg_names[inst->dst.reg]);
-    desmos_reg_out(
+    desmos_append_reg_cond(
       inst, 
       // ensure we don't load an "undefined"
       "\\\\left\\\\{" DESMOS_STDIN "\\\\left[1\\\\right]:" DESMOS_STDIN 
-      "\\\\left[1\\\\right],0\\\\right\\\\}"
+      "\\\\left[1\\\\right],0\\\\right\\\\}",
+      false
     );
     // Remove the first char of stdin
     desmos_append_mem_cond(
@@ -640,6 +641,7 @@ void desmos_emit_inst(Inst* inst) {
   case GT:
   case LE:
   case GE:
+    error("Comparison not implemented");
     emit_line("%s = (%s) | 0;",
               reg_names[inst->dst.reg], cmp_str(inst, "true"));
     break;
@@ -650,9 +652,13 @@ void desmos_emit_inst(Inst* inst) {
   case JGT:
   case JLE:
   case JGE:
+    error("Conditional jump not implemented");
+    break;
+
   case JMP:
-    emit_line("if (%s) pc = %s - 1;",
-              cmp_str(inst, "true"), value_str(&inst->jmp));
+    desmos_append_reg_cond(
+      inst, desmos_mallocd_sprintf(DESMOS_ASSIGN "\\\\left(r,7,%s-1\\\\right)", value_str(&inst->jmp)), true
+    );
     break;
 
   default:
