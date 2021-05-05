@@ -32,6 +32,7 @@
 #define DESMOS_POP "p"
 #define DESMOS_INS_CHECK "k"
 #define DESMOS_INC_IID "f"
+#define DESMOS_JUMP "j"
 
 #define DESMOS_MEM_FMT "m_{em%d}"
 #define DESMOS_MAX_ARRAY_LEN_CONST "b"
@@ -381,6 +382,17 @@ void desmos_emit_overflow_check(void) {
   desmos_end_expression();
 }
 
+void desmos_emit_jump_function(void) {
+  desmos_start_expression();
+  // Set pc to l-1 and iid to -1
+  fputs(
+    DESMOS_JUMP "\\\\left(o,l\\\\right)=" DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN 
+    "\\\\left(o,9,-1\\\\right),7,l-1\\\\right)", 
+    stdout
+  );
+  desmos_end_expression();
+}
+
 void desmos_emit_array_len_const(void) {
   desmos_start_expression();
   fputs(DESMOS_MAX_ARRAY_LEN_CONST "=" DESMOS_MAX_ARRAY_LEN_STR, stdout);
@@ -560,14 +572,15 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case JMP:
-    fputs(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,",
-      stdout
+    printf(
+      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_JUMP
+      "\\\\left(o,", 
+      inst->pc, 
+      ins_id
     );
-    printf("%d,%d\\\\right)=1:" DESMOS_ASSIGN "\\\\left(o,7,", inst->pc, ins_id);
     brackets_to_close++;
     desmos_value_string(&inst->jmp);
-    fputs("-1\\\\right),", stdout);
+    fputs("\\\\right),", stdout);
     break;
 
   default:
@@ -623,6 +636,7 @@ void target_desmos(Module *module) {
   desmos_emit_mem_accessor();
   desmos_emit_instruction_check();
   desmos_emit_overflow_check();
+  desmos_emit_jump_function();
   desmos_emit_array_len_const();
   desmos_init_mem(module->data);
   // These functions TODO
