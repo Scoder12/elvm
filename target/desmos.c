@@ -275,9 +275,8 @@ void desmos_emit_pc_change(int pc) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", pc - 1, ins_id
     );
     fputs(
-      DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left("
-      DESMOS_REGISTERS ",9,-1\\\\right),7," DESMOS_REGISTERS "\\\\left[7\\\\right]+1"
-      "\\\\right),", 
+      DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left(o,9,-1\\\\right),7,o\\\\left[7"
+      "\\\\right]+1\\\\right),", 
       stdout
     );
     ins_id = 0;
@@ -417,10 +416,10 @@ void desmos_src(Inst* inst) {
 void desmos_reg_out(Inst *inst) {
   printf(
     "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
-    DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d,", 
+    DESMOS_ASSIGN "\\\\left(o,%d,", 
     inst->pc, 
     ins_id, 
-    inst->dst.reg
+    inst->dst.reg + 1
   );
   brackets_to_close++;
 }
@@ -432,8 +431,8 @@ void desmos_overflowed_reg_out(Inst *inst, char *join) {
     "\\\\left(o\\\\left[%d\\\\right]%s", 
     inst->pc, 
     ins_id, 
-    inst->dst.reg,
-    inst->dst.reg,
+    inst->dst.reg + 1,
+    inst->dst.reg + 1,
     join
   );
   desmos_src(inst);
@@ -504,7 +503,7 @@ void desmos_emit_inst(Inst* inst) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDOUT_MODE ",",
       stdout
     );
-    printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc, ins_id);
+    printf("%d,%d\\\\right)=1:", inst->pc, ins_id);
     brackets_to_close++;
     fputs(DESMOS_APPEND "\\\\left(o,", stdout);
     desmos_src(inst);
@@ -534,7 +533,7 @@ void desmos_emit_inst(Inst* inst) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", inst->pc, ins_id
     );
     brackets_to_close++;
-    fputs(DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",8,0\\\\right),", stdout);
+    fputs(DESMOS_ASSIGN "\\\\left(o,8,0\\\\right),", stdout);
     break;
 
   case DUMP:
@@ -565,7 +564,7 @@ void desmos_emit_inst(Inst* inst) {
       "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,",
       stdout
     );
-    printf("%d,%d\\\\right)=1:" DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",7,", inst->pc, ins_id);
+    printf("%d,%d\\\\right)=1:" DESMOS_ASSIGN "\\\\left(o,7,", inst->pc, ins_id);
     brackets_to_close++;
     desmos_value_string(&inst->jmp);
     fputs("-1\\\\right),", stdout);
