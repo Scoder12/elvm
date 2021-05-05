@@ -4,11 +4,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#define DESMOS_MAX_ARRAY_LEN 10000
-//#define DESMOS_NUM_MEMCHUNKS 100
+// hard max is 10000 but lower is more stable
 #define DESMOS_MAX_ARRAY_LEN 100
 #define DESMOS_MAX_ARRAY_LEN_STR "100"
-#define DESMOS_NUM_MEMCHUNKS 3
+//#define DESMOS_MAX_ARRAY_LEN 100
+//#define DESMOS_MAX_ARRAY_LEN_STR "100"
+
+// this can probably be turned up to 100 but it is less stable
+#define DESMOS_NUM_MEMCHUNKS 5
+//#define DESMOS_NUM_MEMCHUNKS 3
+// (DESMOS_NUM_MEMCHUNKS * DESMOS_MAX_ARRAY_LEN) - 1
+#define DESMOS_MAX_MEM_IND "499"
 
 #define DESMOS_STDIN_MODE "1"
 #define DESMOS_STDOUT_MODE "2"
@@ -329,7 +335,7 @@ void desmos_emit_mem_accessor(void) {
     // minus because GET_MEMCHUNK_NUM returns +1
     DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET_STR 
     "\\\\right)\\\\left["
-    "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST "\\\\right)\\\\right]",
+    "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST "\\\\right)+1\\\\right]",
     stdout);
   desmos_end_expression();
   desmos_start_expression();
@@ -372,7 +378,7 @@ void desmos_emit_instruction_check(void) {
 void desmos_emit_overflow_check(void) {
   desmos_start_expression();
   fputs(DESMOS_OVERFLOW_CHECK_FUNC "\\\\left(n\\\\right)=\\\\operatorname{mod}\\\\left"
-        "(n," UINT_MAX_STR "\\\\right)", stdout);
+        "(n," DESMOS_MAX_MEM_IND "\\\\right)", stdout);
   desmos_end_expression();
 }
 
@@ -422,8 +428,8 @@ void desmos_reg_out(Inst *inst) {
 void desmos_overflowed_reg_out(Inst *inst, char *join) {
   printf(
     "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
-    DESMOS_ASSIGN "\\\\left(" DESMOS_REGISTERS ",%d," DESMOS_OVERFLOW_CHECK_FUNC 
-    "\\\\left(%d%s", 
+    DESMOS_ASSIGN "\\\\left(o,%d," DESMOS_OVERFLOW_CHECK_FUNC 
+    "\\\\left(o\\\\left[%d\\\\right]%s", 
     inst->pc, 
     ins_id, 
     inst->dst.reg,
@@ -599,7 +605,7 @@ void desmos_emit_function_finder(int num_funcs) {
   printf(
     "u\\\\left(m,o\\\\right)="
     "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID "\\\\left(m,u_{1}\\\\left(\\\\operatorname"
-    "{floor}\\\\left(\\\\frac{r\\\\left[1\\\\right]}{%d}\\\\right),m,o\\\\right)"
+    "{floor}\\\\left(\\\\frac{r\\\\left[7\\\\right]}{%d}\\\\right),m,o\\\\right)"
     "\\\\right),o\\\\right\\\\}", 
     CHUNKED_FUNC_SIZE
   );
