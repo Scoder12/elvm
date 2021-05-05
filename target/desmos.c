@@ -254,7 +254,7 @@ void desmos_emit_func_prologue(int func_id) {
   ins_id = 0;
   desmos_start_expression();
   // assign is used to increment pc
-  printf("f_{%d}\\\\left(p,m,o\\\\right)=", func_id);
+  printf("f_{%d}\\\\left(m,o\\\\right)=", func_id);
 }
 
 void desmos_emit_func_epilogue(void) {
@@ -583,7 +583,7 @@ void desmos_emit_function_finder(int num_funcs) {
     if (i != 0) {
       putchar(',');
     }
-    printf("\\\\left\\\\{p=%d:f_{%d}\\\\left(p,m,o\\\\right)", i, i);
+    printf("\\\\left\\\\{p=%d:f_{%d}\\\\left(m,o\\\\right)", i, i);
   }
   for (int i = 0; i < num_funcs; i++) {
     fputs("\\\\right\\\\}", stdout);
