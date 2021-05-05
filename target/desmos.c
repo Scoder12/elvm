@@ -273,11 +273,12 @@ void desmos_emit_pc_change(int pc) {
   fprintf(stderr, "pc change pc=%d\n", pc);
   if (pc != 0) {
     printf(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_JUMP 
-      "\\\\left(o,%d\\\\right),", 
-      pc - 1, 
-      ins_id,
-      pc + 1 // because jump decrements loc
+      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", pc - 1, ins_id
+    );
+    fputs(
+      DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left(o,9,-1\\\\right),7,o\\\\left[7"
+      "\\\\right]+1\\\\right),", 
+      stdout
     );
     ins_id = 0;
     brackets_to_close++;
