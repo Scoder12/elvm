@@ -613,7 +613,6 @@ void desmos_emit_function_finder(int num_funcs) {
   desmos_start_expression();
   // Having a second function helps save size because p is much shorter than accessing
   //  r[7]
-  // If pc == -1, set running to 1 and pc to 0
   printf(
     "u\\\\left(m,o\\\\right)="
     "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID "\\\\left(m,u_{1}\\\\left(\\\\operatorname"
