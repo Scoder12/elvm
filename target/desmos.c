@@ -1,8 +1,8 @@
-#include <ir/ir.h>
-#include <target/util.h>
 #include <ctype.h>
+#include <ir/ir.h>
 #include <stdlib.h>
 #include <string.h>
+#include <target/util.h>
 
 // hard max is 10000 but lower is more stable
 #define DESMOS_MAX_ARRAY_LEN 100
@@ -52,16 +52,18 @@ void desmos_emit_id(char *s, size_t l) {
   }
 }
 
-// Following two functions modified from https://github.com/cesanta/frozen/blob/master/frozen.c
+// Following two functions modified from
+// https://github.com/cesanta/frozen/blob/master/frozen.c
 int desmos_get_utf8_char_len(unsigned char ch) {
-  if ((ch & 0x80) == 0) return 1;
+  if ((ch & 0x80) == 0)
+    return 1;
   switch (ch & 0xf0) {
-    case 0xf0:
-      return 4;
-    case 0xe0:
-      return 3;
-    default:
-      return 2;
+  case 0xf0:
+    return 4;
+  case 0xe0:
+    return 3;
+  default:
+    return 2;
   }
 }
 
@@ -92,14 +94,13 @@ void desmos_emit_json_escaped_string(char *p, size_t len) {
 }
 
 void desmos_init_graph(void) {
-  // getState() has a graph key with viewport info, and a randomSeed, but hese fields
+  // getState() has a graph key with viewport info, and a randomSeed, but hese
+  // fields
   //  are actually optional for Calc.setState().
   fputs("{\"version\":8,\"expressions\":{\"list\":[", stdout);
 }
 
-void desmos_end_graph(void) {
-  fputs("]}}", stdout);
-}
+void desmos_end_graph(void) { fputs("]}}", stdout); }
 
 static int exp_id;
 
@@ -113,9 +114,7 @@ void desmos_start_expression(void) {
   exp_id++;
 }
 
-void desmos_end_expression(void) {
-  fputs("\"}", stdout);
-}
+void desmos_end_expression(void) { fputs("\"}", stdout); }
 
 void desmos_start_simulation(void) {
   if (exp_id != 0) {
@@ -137,28 +136,20 @@ void desmos_start_simulation_rule(int sim_start, char *assignment) {
   exp_id++;
 }
 
-void desmos_end_simulation_rule(void) {
-  fputs("\"}", stdout);
-}
+void desmos_end_simulation_rule(void) { fputs("\"}", stdout); }
 
-void desmos_end_simulation(void) {
-  fputs("]}}", stdout);
-}
+void desmos_end_simulation(void) { fputs("]}}", stdout); }
 
-void desmos_start_list(void) {
-  fputs("\\\\left[", stdout);
-}
+void desmos_start_list(void) { fputs("\\\\left[", stdout); }
 
-void desmos_end_list(void) {
-  fputs("\\\\right]", stdout);
-}
+void desmos_end_list(void) { fputs("\\\\right]", stdout); }
 
-char* desmos_mallocd_sprintf(const char *fmt, ...) {
+char *desmos_mallocd_sprintf(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   size_t needed = vsnprintf(NULL, 0, fmt, ap);
   va_end(ap);
-  char* data = malloc(needed + 1);
+  char *data = malloc(needed + 1);
   va_start(ap, fmt);
   vsprintf(data, fmt, ap);
   va_end(ap);
@@ -236,11 +227,10 @@ void desmos_init_mem(Data *data) {
   desmos_end_expression();
   while (memchunk < DESMOS_NUM_MEMCHUNKS) {
     desmos_start_memchunk(memchunk);
-    fputs("\\\\sum_{n=\\\\left[1,..."
-          DESMOS_MAX_ARRAY_LEN_CONST
-          "\\\\right]}^{\\\\left[1,..."
-          DESMOS_MAX_ARRAY_LEN_CONST
-          "\\\\right]}0", stdout);
+    fputs("\\\\sum_{n=\\\\left[1,..." DESMOS_MAX_ARRAY_LEN_CONST
+          "\\\\right]}^{\\\\left[1,..." DESMOS_MAX_ARRAY_LEN_CONST
+          "\\\\right]}0",
+          stdout);
     desmos_end_expression();
     memchunk++;
   }
@@ -272,14 +262,12 @@ void desmos_emit_func_epilogue(void) {
 void desmos_emit_pc_change(int pc) {
   fprintf(stderr, "pc change pc=%d\n", pc);
   if (pc != 0) {
-    printf(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", pc - 1, ins_id
-    );
-    fputs(
-      DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN "\\\\left(o,9,-1\\\\right),7,o\\\\left[7"
-      "\\\\right]+1\\\\right),", 
-      stdout
-    );
+    printf("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:",
+           pc - 1, ins_id);
+    fputs(DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN
+                        "\\\\left(o,9,-1\\\\right),7,o\\\\left[7"
+                        "\\\\right]+1\\\\right),",
+          stdout);
     ins_id = 0;
     brackets_to_close++;
   }
@@ -288,67 +276,75 @@ void desmos_emit_pc_change(int pc) {
 void desmos_emit_assign_function(void) {
   desmos_start_expression();
   fputs(
-    DESMOS_ASSIGN_SUB 
-    "\\\\left(l_{asn},i_{asn},v_{asn},t_{asn}\\\\right)=\\\\sum_{n=t_{asn}}^{"
-    "t_{asn}}\\\\left\\\\{i_{asn}=n:v_{asn},l_{asn}\\\\left[n\\\\right]\\\\right\\"
-    "\\}", 
-    stdout
-  );
+      DESMOS_ASSIGN_SUB
+      "\\\\left(l_{asn},i_{asn},v_{asn},t_{asn}\\\\right)=\\\\sum_{n=t_{asn}}^{"
+      "t_{asn}}\\\\left\\\\{i_{asn}=n:v_{asn},l_{asn}\\\\left[n\\\\right]"
+      "\\\\right\\"
+      "\\}",
+      stdout);
   desmos_end_expression();
   desmos_start_expression();
-  fputs(DESMOS_ASSIGN "\\\\left(l_{asn},i_{asn},v_{asn}\\\\right)=" DESMOS_ASSIGN_SUB 
-        "\\\\left(l_{asn},i_{asn},v_{asn},\\\\left[1,...,\\\\operatorname{length}"
-        "\\\\left(l_{asn}\\\\right)\\\\right]\\\\right)", stdout);
+  fputs(
+      DESMOS_ASSIGN
+      "\\\\left(l_{asn},i_{asn},v_{asn}\\\\right)=" DESMOS_ASSIGN_SUB
+      "\\\\left(l_{asn},i_{asn},v_{asn},\\\\left[1,...,\\\\operatorname{length}"
+      "\\\\left(l_{asn}\\\\right)\\\\right]\\\\right)",
+      stdout);
   desmos_end_expression();
 }
 
 void desmos_emit_append_function(void) {
   desmos_start_expression();
-  fputs(
-    DESMOS_APPEND
-    "\\\\left(l_{a},i\\\\right)=\\\\sum_{n=\\\\left[1,...,\\\\operatorname{"
-    "length}\\\\left(l_{a}\\\\right)+1\\\\right]}^{\\\\left[1,...,\\\\operatorname{"
-    "length}\\\\left(l_{a}\\\\right)+1\\\\right]}\\\\left\\\\{n\\\\le\\\\operatorname{"
-    "length}\\\\left(l_{a}\\\\right):l_{a}\\\\left[n\\\\right],i\\\\right\\\\}",
-    stdout
-  );
+  fputs(DESMOS_APPEND
+        "\\\\left(l_{a},i\\\\right)=\\\\sum_{n=\\\\left[1,...,\\\\operatorname{"
+        "length}\\\\left(l_{a}\\\\right)+1\\\\right]}^{\\\\left[1,...,"
+        "\\\\operatorname{"
+        "length}\\\\left(l_{a}\\\\right)+1\\\\right]}\\\\left\\\\{"
+        "n\\\\le\\\\operatorname{"
+        "length}\\\\left(l_{a}\\\\right):l_{a}\\\\left[n\\\\right],"
+        "i\\\\right\\\\}",
+        stdout);
   desmos_end_expression();
 }
 
 void desmos_emit_pop_function(void) {
   desmos_start_expression();
-  fputs(
-    DESMOS_POP "\\\\left(l_{s}\\\\right)=\\\\left\\\\{\\\\operatorname{length}"
-    "\\\\left(l_{s}\\\\right)>0:\\\\sum_{n=\\\\left[1,...,\\\\operatorname{length}"
-    "\\\\left(l_{s}\\\\right)-1\\\\right]}^{\\\\left[1,...,\\\\operatorname{length}"
-    "\\\\left(l_{s}\\\\right)-1\\\\right]}l_{s}\\\\left[n+1\\\\right],l_{s}\\\\right"
-    "\\\\}",
-    stdout
-  );
+  fputs(DESMOS_POP
+        "\\\\left(l_{s}\\\\right)=\\\\left\\\\{\\\\operatorname{length}"
+        "\\\\left(l_{s}\\\\right)>0:\\\\sum_{n=\\\\left[1,...,\\\\operatorname{"
+        "length}"
+        "\\\\left(l_{s}\\\\right)-1\\\\right]}^{\\\\left[1,...,"
+        "\\\\operatorname{length}"
+        "\\\\left(l_{s}\\\\right)-1\\\\right]}l_{s}\\\\left[n+1\\\\right],l_{s}"
+        "\\\\right"
+        "\\\\}",
+        stdout);
   desmos_end_expression();
 }
 
 void desmos_emit_mem_accessor(void) {
   desmos_start_expression();
-  fputs(
-    DESMOS_MEM_ACCESSOR "\\\\left(l\\\\right)=" DESMOS_GET_MEMCHUNK "\\\\left("
-    // minus because GET_MEMCHUNK_NUM returns +1
-    DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET_STR 
-    "\\\\right)\\\\left["
-    "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST "\\\\right)+1\\\\right]",
-    stdout);
+  fputs(DESMOS_MEM_ACCESSOR
+        "\\\\left(l\\\\right)=" DESMOS_GET_MEMCHUNK "\\\\left("
+        // minus because GET_MEMCHUNK_NUM returns +1
+        DESMOS_GET_MEMCHUNK_NUM
+        "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET_STR "\\\\right)\\\\left["
+        "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST
+        "\\\\right)+1\\\\right]",
+        stdout);
   desmos_end_expression();
   desmos_start_expression();
   fputs(
-    DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)=\\\\operatorname{floor}"
-    "\\\\left(\\\\frac{l}{"
-    DESMOS_MAX_ARRAY_LEN_CONST
-    // + to save space when comparing the result of this function against mode
-    //  since m=0 is registers and m=1 is memchunk 0, and GET_MEMCHUNK_NUM(n)+1
-    //  would be needed to account for registers. When actually accessing this is
-    //  offset. Therefore GET_MEMCHUNK_NUM(0) is actually 1 but becomes 0 before
-    //  being passed to GET_MEMCHUNK.
-    "}\\\\right)+" DESMOS_MEM_MODE_OFFSET_STR, stdout);
+      DESMOS_GET_MEMCHUNK_NUM
+      "\\\\left(l\\\\right)=\\\\operatorname{floor}"
+      "\\\\left(\\\\frac{l}{" DESMOS_MAX_ARRAY_LEN_CONST
+      // + to save space when comparing the result of this function against mode
+      //  since m=0 is registers and m=1 is memchunk 0, and
+      //  GET_MEMCHUNK_NUM(n)+1 would be needed to account for registers. When
+      //  actually accessing this is offset. Therefore GET_MEMCHUNK_NUM(0) is
+      //  actually 1 but becomes 0 before being passed to GET_MEMCHUNK.
+      "}\\\\right)+" DESMOS_MEM_MODE_OFFSET_STR,
+      stdout);
   desmos_end_expression();
   desmos_start_expression();
   fputs(DESMOS_GET_MEMCHUNK "\\\\left(l\\\\right)=", stdout);
@@ -366,30 +362,31 @@ void desmos_emit_mem_accessor(void) {
 
 void desmos_emit_instruction_check(void) {
   desmos_start_expression();
-  fputs(
-    DESMOS_INS_CHECK "\\\\left(m,h,p,i\\\\right)=\\\\left\\\\{" DESMOS_REGISTERS
-    "\\\\left[7\\\\right]=p:\\\\left\\\\{" DESMOS_REGISTERS "\\\\left[9\\\\right]=i:"
-    "\\\\left\\\\{m=h:1,0\\\\right\\\\},0\\\\right\\\\},0\\\\right\\\\}", 
-    stdout
-  );
+  fputs(DESMOS_INS_CHECK
+        "\\\\left(m,h,p,i\\\\right)=\\\\left\\\\{" DESMOS_REGISTERS
+        "\\\\left[7\\\\right]=p:\\\\left\\\\{" DESMOS_REGISTERS
+        "\\\\left[9\\\\right]=i:"
+        "\\\\left\\\\{m=h:1,0\\\\right\\\\},0\\\\right\\\\},0\\\\right\\\\}",
+        stdout);
   desmos_end_expression();
 }
 
 void desmos_emit_overflow_check(void) {
   desmos_start_expression();
-  fputs(DESMOS_OVERFLOW_CHECK_FUNC "\\\\left(n\\\\right)=\\\\operatorname{mod}\\\\left"
-        "(n," DESMOS_MAX_MEM_IND "\\\\right)", stdout);
+  fputs(DESMOS_OVERFLOW_CHECK_FUNC
+        "\\\\left(n\\\\right)=\\\\operatorname{mod}\\\\left"
+        "(n," DESMOS_MAX_MEM_IND "\\\\right)",
+        stdout);
   desmos_end_expression();
 }
 
 void desmos_emit_jump_function(void) {
   desmos_start_expression();
   // Set pc to l-1 and iid to -1
-  fputs(
-    DESMOS_JUMP "\\\\left(o,l\\\\right)=" DESMOS_ASSIGN "\\\\left(" DESMOS_ASSIGN 
-    "\\\\left(o,9,-1\\\\right),7,l-1\\\\right)", 
-    stdout
-  );
+  fputs(DESMOS_JUMP "\\\\left(o,l\\\\right)=" DESMOS_ASSIGN
+                    "\\\\left(" DESMOS_ASSIGN
+                    "\\\\left(o,9,-1\\\\right),7,l-1\\\\right)",
+        stdout);
   desmos_end_expression();
 }
 
@@ -411,7 +408,7 @@ void desmos_init_io(void) {
   desmos_end_expression();
 }
 
-void desmos_value_string(Value* v) {
+void desmos_value_string(Value *v) {
   if (v->type == REG) {
     printf("r\\\\left[%d\\\\right]", v->reg + 1);
   } else if (v->type == IMM) {
@@ -421,48 +418,36 @@ void desmos_value_string(Value* v) {
   }
 }
 
-void desmos_src(Inst* inst) {
-  desmos_value_string(&inst->src);
-}
+void desmos_src(Inst *inst) { desmos_value_string(&inst->src); }
 
 void desmos_reg_out(Inst *inst) {
-  printf(
-    "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
-    DESMOS_ASSIGN "\\\\left(o,%d,", 
-    inst->pc, 
-    ins_id, 
-    inst->dst.reg + 1
-  );
+  printf("\\\\left\\\\{" DESMOS_INS_CHECK
+         "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_ASSIGN "\\\\left(o,%d,",
+         inst->pc, ins_id, inst->dst.reg + 1);
   brackets_to_close++;
 }
 
 void desmos_overflowed_reg_out(Inst *inst, char *join) {
-  printf(
-    "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:"
-    DESMOS_ASSIGN "\\\\left(o,%d," DESMOS_OVERFLOW_CHECK_FUNC 
-    "\\\\left(o\\\\left[%d\\\\right]%s", 
-    inst->pc, 
-    ins_id, 
-    inst->dst.reg + 1,
-    inst->dst.reg + 1,
-    join
-  );
+  printf("\\\\left\\\\{" DESMOS_INS_CHECK
+         "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_ASSIGN
+         "\\\\left(o,%d," DESMOS_OVERFLOW_CHECK_FUNC
+         "\\\\left(o\\\\left[%d\\\\right]%s",
+         inst->pc, ins_id, inst->dst.reg + 1, inst->dst.reg + 1, join);
   desmos_src(inst);
   fputs("\\\\right)\\\\right),", stdout);
   brackets_to_close++;
 }
 
 void desmos_emit_mem_cond(Inst *inst) {
-  fputs(
-    "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_GET_MEMCHUNK_NUM 
-    "\\\\left(",
-    stdout
-  );
+  fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_GET_MEMCHUNK_NUM
+        "\\\\left(",
+        stdout);
   if ((&inst->src)->type == REG) {
     desmos_src(inst);
     fputs("\\\\right)", stdout);
   } else if ((&inst->src)->type == IMM) {
-    // If we know the value at compile time we can save a few bytes and a few CPU
+    // If we know the value at compile time we can save a few bytes and a few
+    // CPU
     //  cycles by hardcoding the memchunk we want
     printf("%d", (&inst->src)->imm);
   } else {
@@ -480,8 +465,9 @@ void desmos_emit_mem_assign(Inst *inst) {
   fputs("\\\\right),", stdout);
 }
 
-void desmos_emit_inst(Inst* inst) {
-  fprintf(stderr, "Emit instruction pc=%d iid=%d src=%d\n", inst->pc, ins_id, inst->src.type == REG);
+void desmos_emit_inst(Inst *inst) {
+  fprintf(stderr, "Emit instruction pc=%d iid=%d src=%d\n", inst->pc, ins_id,
+          inst->src.type == REG);
 
   switch (inst->op) {
   case MOV:
@@ -511,10 +497,8 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case PUTC:
-    fputs(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDOUT_MODE ",",
-      stdout
-    );
+    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDOUT_MODE ",",
+          stdout);
     printf("%d,%d\\\\right)=1:", inst->pc, ins_id);
     brackets_to_close++;
     fputs(DESMOS_APPEND "\\\\left(o,", stdout);
@@ -525,25 +509,22 @@ void desmos_emit_inst(Inst* inst) {
   case GETC:
     desmos_reg_out(inst);
     fputs(
-      // check if stdin is empty, in which case we load a 0
-      "\\\\left\\\\{" DESMOS_STDIN "\\\\left[1\\\\right]:" DESMOS_STDIN 
-      "\\\\left[1\\\\right],0\\\\right\\\\}\\\\right),",
-      stdout
-    );
+        // check if stdin is empty, in which case we load a 0
+        "\\\\left\\\\{" DESMOS_STDIN "\\\\left[1\\\\right]:" DESMOS_STDIN
+        "\\\\left[1\\\\right],0\\\\right\\\\}\\\\right),",
+        stdout);
 
     // Remove the first character of stdin
-    fputs(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE ",",
-      stdout
-    );
-    printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc, ins_id);
+    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE ",",
+          stdout);
+    printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc,
+           ins_id);
     brackets_to_close++;
     break;
 
   case EXIT:
-    printf(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:", inst->pc, ins_id
-    );
+    printf("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:",
+           inst->pc, ins_id);
     brackets_to_close++;
     fputs(DESMOS_ASSIGN "\\\\left(o,8,0\\\\right),", stdout);
     break;
@@ -558,8 +539,8 @@ void desmos_emit_inst(Inst* inst) {
   case LE:
   case GE:
     error("Comparison not implemented");
-    emit_line("%s = (%s) | 0;",
-              reg_names[inst->dst.reg], cmp_str(inst, "true"));
+    emit_line("%s = (%s) | 0;", reg_names[inst->dst.reg],
+              cmp_str(inst, "true"));
     break;
 
   case JEQ:
@@ -572,12 +553,9 @@ void desmos_emit_inst(Inst* inst) {
     break;
 
   case JMP:
-    printf(
-      "\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_JUMP
-      "\\\\left(o,", 
-      inst->pc, 
-      ins_id
-    );
+    printf("\\\\left\\\\{" DESMOS_INS_CHECK
+           "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_JUMP "\\\\left(o,",
+           inst->pc, ins_id);
     brackets_to_close++;
     desmos_value_string(&inst->jmp);
     fputs("\\\\right),", stdout);
@@ -603,30 +581,31 @@ void desmos_emit_function_finder(int num_funcs) {
   }
   desmos_end_expression();
   desmos_start_expression();
-  fputs(
-    DESMOS_INC_IID "\\\\left(m,o\\\\right)=\\\\left\\\\{m=0:" DESMOS_ASSIGN "\\\\left("
-    "o,9,o\\\\left[9\\\\right]+1\\\\right),o"
-    "\\\\right\\\\}",
-    stdout
-  );
+  fputs(DESMOS_INC_IID "\\\\left(m,o\\\\right)=\\\\left\\\\{m=0:" DESMOS_ASSIGN
+                       "\\\\left("
+                       "o,9,o\\\\left[9\\\\right]+1\\\\right),o"
+                       "\\\\right\\\\}",
+        stdout);
   desmos_end_expression();
   desmos_start_expression();
-  // Having a second function helps save size because p is much shorter than accessing
+  // Having a second function helps save size because p is much shorter than
+  // accessing
   //  r[7]
-  printf(
-    "u\\\\left(m,o\\\\right)="
-    "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID "\\\\left(m,u_{1}\\\\left(\\\\operatorname"
-    "{floor}\\\\left(\\\\frac{r\\\\left[7\\\\right]}{%d}\\\\right),m,o\\\\right)"
-    "\\\\right),o\\\\right\\\\}", 
-    CHUNKED_FUNC_SIZE
-  );
+  printf("u\\\\left(m,o\\\\right)="
+         "\\\\left\\\\{r[8]=1:" DESMOS_INC_IID
+         "\\\\left(m,u_{1}\\\\left(\\\\operatorname"
+         "{floor}\\\\left(\\\\frac{r\\\\left[7\\\\right]}{%d}\\\\right),m,"
+         "o\\\\right)"
+         "\\\\right),o\\\\right\\\\}",
+         CHUNKED_FUNC_SIZE);
   desmos_end_expression();
 }
 
 void target_desmos(Module *module) {
   desmos_init_graph();
   desmos_init_io();
-  // Desmos functions are position independent so might as well put the mainloop at the
+  // Desmos functions are position independent so might as well put the mainloop
+  // at the
   //  beginning to look nice
   desmos_init_mainloop();
   desmos_init_registers();
@@ -639,13 +618,11 @@ void target_desmos(Module *module) {
   desmos_emit_array_len_const();
   desmos_init_mem(module->data);
   // These functions TODO
-  //int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
-  //desmos_emit_update_function(&exp_id, num_funcs);
-  int num_funcs = emit_chunked_main_loop(module->text,
-                                         desmos_emit_func_prologue,
-                                         desmos_emit_func_epilogue,
-                                         desmos_emit_pc_change,
-                                         desmos_emit_inst);
+  // int num_funcs = desmos_emit_chunked_main_loop(&exp_id);
+  // desmos_emit_update_function(&exp_id, num_funcs);
+  int num_funcs = emit_chunked_main_loop(
+      module->text, desmos_emit_func_prologue, desmos_emit_func_epilogue,
+      desmos_emit_pc_change, desmos_emit_inst);
   desmos_emit_function_finder(num_funcs);
   desmos_end_graph();
 }
