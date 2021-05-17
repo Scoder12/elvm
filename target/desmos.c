@@ -595,16 +595,16 @@ void desmos_emit_inst(Inst *inst) {
     desmos_emit_cmp_str(inst);
     desmos_src(inst);
     putchar(':');
-    if (inst->op == NE) {
+    if (inst->op == JNE) {
       fputs("o,", stdout);
     }
     fputs(DESMOS_JUMP "\\\\left(o,", stdout);
     desmos_value_string(&inst->jmp);
     fputs("\\\\right)", stdout);
-    if (inst->op != NE) {
+    if (inst->op != JNE) {
       fputs(",o", stdout);
     }
-    fputs("\\\\right\\\\}", stdout);
+    fputs("\\\\right\\\\},", stdout);
     break;
 
   case JMP:
