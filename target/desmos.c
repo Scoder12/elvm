@@ -30,7 +30,7 @@
 #define DESMOS_GET_MEMCHUNK_NUM "c"
 #define DESMOS_GET_MEMCHUNK "t"
 #define DESMOS_APPEND "d"
-#define DESMOS_POP "p"
+#define DESMOS_POP "q"
 #define DESMOS_INS_CHECK "k"
 #define DESMOS_INC_IID "f"
 #define DESMOS_JUMP "j"
@@ -308,7 +308,7 @@ void desmos_emit_pop_function(void) {
   desmos_start_expression();
   fputs(DESMOS_POP
         "\\\\left(l_{s}\\\\right)=\\\\left\\\\{\\\\operatorname{length}"
-        "\\\\left(l_{s}\\\\right)>0:\\\\sum_{n=\\\\left[1,...,\\\\operatorname{"
+        "\\\\left(l_{s}\\\\right)>1:\\\\sum_{n=\\\\left[1,...,\\\\operatorname{"
         "length}"
         "\\\\left(l_{s}\\\\right)-1\\\\right]}^{\\\\left[1,...,"
         "\\\\operatorname{length}"
@@ -658,6 +658,7 @@ void target_desmos(Module *module) {
   desmos_init_registers();
   desmos_emit_assign_function();
   desmos_emit_append_function();
+  desmos_emit_pop_function();
   desmos_emit_mem_accessor();
   desmos_emit_instruction_check();
   desmos_emit_overflow_check();
