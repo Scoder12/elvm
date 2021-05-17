@@ -472,22 +472,28 @@ void desmos_emit_mem_assign(Inst *inst) {
 
 void desmos_emit_cmp_str(Inst *inst) {
   switch (inst->op) {
+    case EQ:
+    case NE:
     case JEQ:
       putchar('=');
       break;
 
+    case LT:
     case JLT:
       putchar('<');
       break;
 
+    case GT:
     case JGT:
       putchar('>');
       break;
 
+    case LE:
     case JLE:
       fputs("\\\\le", stdout);
       break;
 
+    case GE:
     case JGE:
       fputs("\\\\ge", stdout);
       break;
@@ -570,14 +576,18 @@ void desmos_emit_inst(Inst *inst) {
   case GT:
   case LE:
   case GE:
-    error("Comparison not implemented");
-    emit_line("%s = (%s) | 0;", reg_names[inst->dst.reg],
-              cmp_str(inst, "true"));
+    desmos_reg_out(inst);
+    printf("\\\\left\\\\{o\\\\left[%d\\\\right]", inst->dst.reg + 1);
+    desmos_emit_cmp_str(inst);
+    desmos_src(inst);
+    putchar(':');
+    fputs(inst->op == NE ? "0,1" : "1,0", stdout);
+    fputs("\\\\right\\\\}\\\\right)", stdout);
     break;
   
   case JNE:
     desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
-    printf("\\\\left\\\\{o\\\\left[%d\\\\right]=", inst->dst.reg);
+    printf("\\\\left\\\\{o\\\\left[%d\\\\right]=", inst->dst.reg + 1);
     desmos_src(inst);
     fputs(":o," DESMOS_JUMP "\\\\left(o,", stdout);
     desmos_value_string(&inst->jmp);
@@ -591,7 +601,7 @@ void desmos_emit_inst(Inst *inst) {
   case JLE:
   case JGE:
     desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
-    printf("\\\\left\\\\{o\\\\left[%d\\\\right]", inst->dst.reg);
+    printf("\\\\left\\\\{o\\\\left[%d\\\\right]", inst->dst.reg + 1);
     desmos_emit_cmp_str(inst);
     desmos_src(inst);
     fputs(":" DESMOS_JUMP "\\\\left(o,", stdout);
