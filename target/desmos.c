@@ -470,6 +470,34 @@ void desmos_emit_mem_assign(Inst *inst) {
   fputs("\\\\right),", stdout);
 }
 
+void desmos_emit_cmp_str(Inst *inst) {
+  switch (inst->op) {
+    case JEQ:
+      putchar('=');
+      break;
+
+    case JLT:
+      putchar('<');
+      break;
+
+    case JGT:
+      putchar('>');
+      break;
+
+    case JLE:
+      fputs("\\\\le", stdout);
+      break;
+
+    case JGE:
+      fputs("\\\\ge", stdout);
+      break;
+
+    default:
+      fprintf(stderr, "\n\n%d\n\n", inst->op);
+      error("Unknown conditional jump");
+  }
+}
+
 void desmos_emit_inst(Inst *inst) {
   fprintf(stderr, "Emit instruction pc=%d iid=%d src=%d\n", inst->pc, ins_id,
           inst->src.type == REG);
@@ -546,13 +574,29 @@ void desmos_emit_inst(Inst *inst) {
     emit_line("%s = (%s) | 0;", reg_names[inst->dst.reg],
               cmp_str(inst, "true"));
     break;
+  
+  case JNE:
+    desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
+    printf("\\\\left\\\\{o\\\\left[%d\\\\right]=", inst->dst.reg);
+    desmos_src(inst);
+    fputs(":o," DESMOS_JUMP "\\\\left(o,", stdout);
+    desmos_value_string(&inst->jmp);
+    fputs("\\\\right\\\\right\\\\}", stdout);
+    desmos_end_instruction();
+    break;
 
   case JEQ:
-  case JNE:
   case JLT:
   case JGT:
   case JLE:
   case JGE:
+    desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
+    printf("\\\\left\\\\{o\\\\left[%d\\\\right]", inst->dst.reg);
+    desmos_emit_cmp_str(inst);
+    desmos_src(inst);
+    fputs(":" DESMOS_JUMP "\\\\left(o,", stdout);
+    desmos_value_string(&inst->jmp);
+    fputs("\\\\right\\\\right\\\\}", stdout);
     error("Conditional jump not implemented");
     break;
 
@@ -566,7 +610,7 @@ void desmos_emit_inst(Inst *inst) {
     break;
 
   default:
-    error("oops");
+    error("Unknown operation");
   }
   ins_id++;
 }
