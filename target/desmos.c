@@ -475,6 +475,7 @@ void desmos_emit_cmp_str(Inst *inst) {
     case EQ:
     case NE:
     case JEQ:
+    case JNE:
       putchar('=');
       break;
 
@@ -604,9 +605,17 @@ void desmos_emit_inst(Inst *inst) {
     printf("\\\\left\\\\{o\\\\left[%d\\\\right]", inst->dst.reg + 1);
     desmos_emit_cmp_str(inst);
     desmos_src(inst);
-    fputs(":" DESMOS_JUMP "\\\\left(o,", stdout);
+    putchar(':');
+    if (inst->op == NE) {
+      fputs("o,");
+    }
+    fputs(DESMOS_JUMP "\\\\left(o,", stdout);
     desmos_value_string(&inst->jmp);
-    fputs("\\\\right\\\\right\\\\}", stdout);
+    fputs("\\\\right)", stdout);
+    if (inst->op != NE) {
+      fputs(",o", stdout);
+    }
+    fputs("\\\\right\\\\}", stdout);
     error("Conditional jump not implemented");
     break;
 
