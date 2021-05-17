@@ -239,7 +239,6 @@ static int brackets_to_close = -1;
 static int ins_id = -1;
 
 void desmos_emit_func_prologue(int func_id) {
-  fprintf(stderr, "Emit function%d prologue\n", func_id);
   brackets_to_close = 0;
   ins_id = 0;
   desmos_start_expression();
@@ -259,7 +258,6 @@ void desmos_emit_func_epilogue(void) {
 #define UNUSED(x) (void)(x)
 
 void desmos_emit_pc_change(int pc) {
-  fprintf(stderr, "pc change pc=%d\n", pc);
   if (pc != 0) {
     printf("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,0,%d,%d\\\\right)=1:",
            pc - 1, ins_id);
@@ -498,15 +496,11 @@ void desmos_emit_cmp_str(Inst *inst) {
     break;
 
   default:
-    fprintf(stderr, "\n\n%d\n\n", inst->op);
     error("Unknown conditional jump");
   }
 }
 
 void desmos_emit_inst(Inst *inst) {
-  fprintf(stderr, "Emit instruction pc=%d iid=%d src=%d\n", inst->pc, ins_id,
-          inst->src.type == REG);
-
   switch (inst->op) {
   case MOV:
     desmos_reg_out(inst);
