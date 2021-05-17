@@ -587,15 +587,6 @@ void desmos_emit_inst(Inst *inst) {
     break;
   
   case JNE:
-    desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
-    printf("\\\\left\\\\{o\\\\left[%d\\\\right]=", inst->dst.reg + 1);
-    desmos_src(inst);
-    fputs(":o," DESMOS_JUMP "\\\\left(o,", stdout);
-    desmos_value_string(&inst->jmp);
-    fputs("\\\\right\\\\right\\\\}", stdout);
-    desmos_end_instruction();
-    break;
-
   case JEQ:
   case JLT:
   case JGT:
@@ -607,7 +598,7 @@ void desmos_emit_inst(Inst *inst) {
     desmos_src(inst);
     putchar(':');
     if (inst->op == NE) {
-      fputs("o,");
+      fputs("o,", stdout);
     }
     fputs(DESMOS_JUMP "\\\\left(o,", stdout);
     desmos_value_string(&inst->jmp);
