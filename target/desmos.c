@@ -381,9 +381,10 @@ void desmos_emit_overflow_check(void) {
 
 void desmos_emit_jump_function(void) {
   desmos_start_expression();
-  // Set pc to l-1
+  // Set pc to l-1 and iid to -1
   fputs(DESMOS_JUMP "\\\\left(o,l\\\\right)=" DESMOS_ASSIGN
-                    "\\\\left(o,7,l-1\\\\right)",
+                    "\\\\left(" DESMOS_ASSIGN
+                    "\\\\left(o,9,-1\\\\right),7,l-1\\\\right)",
         stdout);
   desmos_end_expression();
 }
