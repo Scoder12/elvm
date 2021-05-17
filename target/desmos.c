@@ -123,7 +123,7 @@ void desmos_start_expression(void) {
   // getState() returns color as well but that is optional
   fputs("{\"type\":\"expression\",", stdout);
   if (folder_id != -1) {
-    printf("\"folderId\":%d,", folder_id);
+    printf("\"folderId\":\"%d\",", folder_id);
   }
   printf("\"id\":%d,\"latex\":\"", exp_id);
   exp_id++;
