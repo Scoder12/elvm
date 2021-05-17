@@ -162,12 +162,10 @@ void desmos_init_mainloop(void) {
   fputs("u\\\\left(0,r\\\\right)", stdout);
   desmos_end_simulation_rule();
   desmos_start_simulation_rule(sim_start, DESMOS_STDIN);
-  fputs("u\\\\left(" DESMOS_STDIN_MODE "," DESMOS_STDIN "\\\\right)",
-        stdout);
+  fputs("u\\\\left(" DESMOS_STDIN_MODE "," DESMOS_STDIN "\\\\right)", stdout);
   desmos_end_simulation_rule();
   desmos_start_simulation_rule(sim_start, DESMOS_STDOUT);
-  fputs("u\\\\left(" DESMOS_STDOUT_MODE "," DESMOS_STDOUT "\\\\right)",
-        stdout);
+  fputs("u\\\\left(" DESMOS_STDOUT_MODE "," DESMOS_STDOUT "\\\\right)", stdout);
   desmos_end_simulation_rule();
 
   for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
@@ -328,8 +326,8 @@ void desmos_emit_mem_accessor(void) {
   fputs(DESMOS_MEM_ACCESSOR
         "\\\\left(l\\\\right)=" DESMOS_GET_MEMCHUNK "\\\\left("
         // minus because GET_MEMCHUNK_NUM returns +1
-        DESMOS_GET_MEMCHUNK_NUM
-        "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET "\\\\right)\\\\left["
+        DESMOS_GET_MEMCHUNK_NUM "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET
+        "\\\\right)\\\\left["
         "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST
         "\\\\right)+1\\\\right]",
         stdout);
@@ -472,36 +470,36 @@ void desmos_emit_mem_assign(Inst *inst) {
 
 void desmos_emit_cmp_str(Inst *inst) {
   switch (inst->op) {
-    case EQ:
-    case NE:
-    case JEQ:
-    case JNE:
-      putchar('=');
-      break;
+  case EQ:
+  case NE:
+  case JEQ:
+  case JNE:
+    putchar('=');
+    break;
 
-    case LT:
-    case JLT:
-      putchar('<');
-      break;
+  case LT:
+  case JLT:
+    putchar('<');
+    break;
 
-    case GT:
-    case JGT:
-      putchar('>');
-      break;
+  case GT:
+  case JGT:
+    putchar('>');
+    break;
 
-    case LE:
-    case JLE:
-      fputs("\\\\le", stdout);
-      break;
+  case LE:
+  case JLE:
+    fputs("\\\\le", stdout);
+    break;
 
-    case GE:
-    case JGE:
-      fputs("\\\\ge", stdout);
-      break;
+  case GE:
+  case JGE:
+    fputs("\\\\ge", stdout);
+    break;
 
-    default:
-      fprintf(stderr, "\n\n%d\n\n", inst->op);
-      error("Unknown conditional jump");
+  default:
+    fprintf(stderr, "\n\n%d\n\n", inst->op);
+    error("Unknown conditional jump");
   }
 }
 
@@ -548,13 +546,13 @@ void desmos_emit_inst(Inst *inst) {
     desmos_reg_out(inst);
     fputs(
         // check if stdin is empty, in which case we load a 0
-        "\\\\left\\\\{" DESMOS_STDIN "\\\\left[1\\\\right]:" DESMOS_STDIN
+        "\\\\left\\\\{\\\\operatorname{length}\\\\left(" DESMOS_STDIN
+        "\\\\right)>0:" DESMOS_STDIN
         "\\\\left[1\\\\right],0\\\\right\\\\}\\\\right),",
         stdout);
 
     // Remove the first character of stdin
-    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE
-          ",",
+    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE ",",
           stdout);
     printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc,
            ins_id);
@@ -585,7 +583,7 @@ void desmos_emit_inst(Inst *inst) {
     fputs(inst->op == NE ? "0,1" : "1,0", stdout);
     fputs("\\\\right\\\\}\\\\right)", stdout);
     break;
-  
+
   case JNE:
   case JEQ:
   case JLT:
