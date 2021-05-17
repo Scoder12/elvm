@@ -607,10 +607,8 @@ void desmos_emit_inst(Inst *inst) {
     break;
 
   case JMP:
-    printf("\\\\left\\\\{" DESMOS_INS_CHECK
-           "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_JUMP "\\\\left(o,",
-           inst->pc, ins_id);
-    brackets_to_close++;
+    desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
+    fputs(DESMOS_JUMP "\\\\left(o,", stdout);
     desmos_value_string(&inst->jmp);
     fputs("\\\\right),", stdout);
     break;
