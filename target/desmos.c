@@ -16,9 +16,10 @@
 // (DESMOS_NUM_MEMCHUNKS * DESMOS_MAX_ARRAY_LEN) - 1
 #define DESMOS_MAX_MEM_IND "499"
 
+#define DESMOS_REGISTER_MODE "0"
 #define DESMOS_STDIN_MODE "1"
 #define DESMOS_STDOUT_MODE "2"
-#define DESMOS_MEM_MODE_OFFSET_STR "3" // registers, stdin, stdout
+#define DESMOS_MEM_MODE_OFFSET "3"
 
 // Desmos function names
 #define DESMOS_OVERFLOW_CHECK_FUNC "w"
@@ -38,8 +39,6 @@
 #define DESMOS_MAX_ARRAY_LEN_CONST "b"
 #define DESMOS_STDIN "s_{tdin}"
 #define DESMOS_STDOUT "s_{tdout}"
-
-#define DESMOS_MODE_REGISTERS "m=0"
 
 // DESMOS_NUM_MEMCHUNKS + 1 for registers
 #define DESMOS_COND_SIZE (DESMOS_NUM_MEMCHUNKS + 1)
@@ -163,10 +162,12 @@ void desmos_init_mainloop(void) {
   fputs("u\\\\left(0,r\\\\right)", stdout);
   desmos_end_simulation_rule();
   desmos_start_simulation_rule(sim_start, DESMOS_STDIN);
-  fputs("u\\\\left(" DESMOS_STDIN_MODE "," DESMOS_STDIN "\\\\right)", stdout);
+  fputs("u\\\\left(" DESMOS_STDIN_MODE "," DESMOS_STDIN "\\\\right)",
+        stdout);
   desmos_end_simulation_rule();
   desmos_start_simulation_rule(sim_start, DESMOS_STDOUT);
-  fputs("u\\\\left(" DESMOS_STDOUT_MODE "," DESMOS_STDOUT "\\\\right)", stdout);
+  fputs("u\\\\left(" DESMOS_STDOUT_MODE "," DESMOS_STDOUT "\\\\right)",
+        stdout);
   desmos_end_simulation_rule();
 
   for (int i = 0; i < DESMOS_NUM_MEMCHUNKS; i++) {
@@ -328,7 +329,7 @@ void desmos_emit_mem_accessor(void) {
         "\\\\left(l\\\\right)=" DESMOS_GET_MEMCHUNK "\\\\left("
         // minus because GET_MEMCHUNK_NUM returns +1
         DESMOS_GET_MEMCHUNK_NUM
-        "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET_STR "\\\\right)\\\\left["
+        "\\\\left(l\\\\right)-" DESMOS_MEM_MODE_OFFSET "\\\\right)\\\\left["
         "\\\\operatorname{mod}\\\\left(l," DESMOS_MAX_ARRAY_LEN_CONST
         "\\\\right)+1\\\\right]",
         stdout);
@@ -343,7 +344,7 @@ void desmos_emit_mem_accessor(void) {
       //  GET_MEMCHUNK_NUM(n)+1 would be needed to account for registers. When
       //  actually accessing this is offset. Therefore GET_MEMCHUNK_NUM(0) is
       //  actually 1 but becomes 0 before being passed to GET_MEMCHUNK.
-      "}\\\\right)+" DESMOS_MEM_MODE_OFFSET_STR,
+      "}\\\\right)+" DESMOS_MEM_MODE_OFFSET,
       stdout);
   desmos_end_expression();
   desmos_start_expression();
@@ -420,22 +421,26 @@ void desmos_value_string(Value *v) {
 
 void desmos_src(Inst *inst) { desmos_value_string(&inst->src); }
 
-void desmos_reg_out(Inst *inst) {
-  printf("\\\\left\\\\{" DESMOS_INS_CHECK
-         "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_ASSIGN "\\\\left(o,%d,",
-         inst->pc, ins_id, inst->dst.reg + 1);
+void desmos_start_instruction(Inst *inst, char *mode) {
+  printf("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m,%s,%d,%d\\\\right)=1:",
+         mode, inst->pc, ins_id);
   brackets_to_close++;
 }
 
+void desmos_end_instruction(void) { fputs("\\\\right),", stdout); }
+
+void desmos_reg_out(Inst *inst) {
+  desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
+  printf(DESMOS_ASSIGN "\\\\left(o,%d,", inst->dst.reg + 1);
+}
+
 void desmos_overflowed_reg_out(Inst *inst, char *join) {
-  printf("\\\\left\\\\{" DESMOS_INS_CHECK
-         "\\\\left(m,0,%d,%d\\\\right)=1:" DESMOS_ASSIGN
-         "\\\\left(o,%d," DESMOS_OVERFLOW_CHECK_FUNC
-         "\\\\left(o\\\\left[%d\\\\right]%s",
-         inst->pc, ins_id, inst->dst.reg + 1, inst->dst.reg + 1, join);
+  desmos_start_instruction(inst, DESMOS_REGISTER_MODE);
+  printf(DESMOS_ASSIGN "\\\\left(o,%d," DESMOS_OVERFLOW_CHECK_FUNC
+                       "\\\\left(o\\\\left[%d\\\\right]%s",
+         inst->dst.reg + 1, inst->dst.reg + 1, join);
   desmos_src(inst);
   fputs("\\\\right)\\\\right),", stdout);
-  brackets_to_close++;
 }
 
 void desmos_emit_mem_cond(Inst *inst) {
@@ -488,7 +493,8 @@ void desmos_emit_inst(Inst *inst) {
     desmos_reg_out(inst);
     fputs(DESMOS_MEM_ACCESSOR "\\\\left(", stdout);
     desmos_src(inst);
-    fputs("\\\\right)\\\\right),", stdout);
+    fputs("\\\\right)", stdout);
+    desmos_end_instruction();
     break;
 
   case STORE:
@@ -497,13 +503,10 @@ void desmos_emit_inst(Inst *inst) {
     break;
 
   case PUTC:
-    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDOUT_MODE ",",
-          stdout);
-    printf("%d,%d\\\\right)=1:", inst->pc, ins_id);
-    brackets_to_close++;
+    desmos_start_instruction(inst, DESMOS_STDOUT_MODE);
     fputs(DESMOS_APPEND "\\\\left(o,", stdout);
     desmos_src(inst);
-    fputs("\\\\right),", stdout);
+    desmos_end_instruction();
     break;
 
   case GETC:
@@ -515,7 +518,8 @@ void desmos_emit_inst(Inst *inst) {
         stdout);
 
     // Remove the first character of stdin
-    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE ",",
+    fputs("\\\\left\\\\{" DESMOS_INS_CHECK "\\\\left(m," DESMOS_STDIN_MODE
+          ",",
           stdout);
     printf("%d,%d\\\\right)=1:" DESMOS_POP "\\\\left(o\\\\right),", inst->pc,
            ins_id);
