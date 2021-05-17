@@ -109,7 +109,7 @@ void desmos_start_folder(char *name) {
     putchar(',');
   }
   fputs("{\"type\":\"folder\",\"id\":", stdout);
-  printf("%d,\"title\":\"%s\"}", exp_id, name);
+  printf("%d,\"collapsed\":true,\"title\":\"%s\"}", exp_id, name);
   folder_id = exp_id;
   exp_id++;
 }
