@@ -607,7 +607,6 @@ void desmos_emit_inst(Inst *inst) {
       fputs(",o", stdout);
     }
     fputs("\\\\right\\\\}", stdout);
-    error("Conditional jump not implemented");
     break;
 
   case JMP:
