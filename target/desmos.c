@@ -581,7 +581,7 @@ void desmos_emit_inst(Inst *inst) {
     desmos_src(inst);
     putchar(':');
     fputs(inst->op == NE ? "0,1" : "1,0", stdout);
-    fputs("\\\\right\\\\}\\\\right)", stdout);
+    fputs("\\\\right\\\\}\\\\right),", stdout);
     break;
 
   case JNE:
