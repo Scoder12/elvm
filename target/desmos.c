@@ -102,14 +102,30 @@ void desmos_init_graph(void) {
 void desmos_end_graph(void) { fputs("]}}", stdout); }
 
 static int exp_id;
+static int folder_id = -1;
+
+void desmos_start_folder(char *name) {
+  if (exp_id != 0) {
+    putchar(',');
+  }
+  fputs("{\"type\":\"folder\",\"id\":", stdout);
+  printf("%d,\"title\":\"%s\"}", exp_id, name);
+  folder_id = exp_id;
+  exp_id++;
+}
+
+void desmos_end_folder(void) { folder_id = -1; }
 
 void desmos_start_expression(void) {
   if (exp_id != 0) {
     putchar(',');
   }
   // getState() returns color as well but that is optional
-  fputs("{\"type\":\"expression\",\"id\":", stdout);
-  printf("%d,\"latex\":\"", exp_id);
+  fputs("{\"type\":\"expression\",", stdout);
+  if (folder_id != -1) {
+    printf("\"folderId\":%d,", folder_id);
+  }
+  printf("\"id\":%d,\"latex\":\"", exp_id);
   exp_id++;
 }
 
@@ -656,6 +672,7 @@ void target_desmos(Module *module) {
   //  beginning to look nice
   desmos_init_mainloop();
   desmos_init_registers();
+  desmos_start_folder("Internals");
   desmos_emit_assign_function();
   desmos_emit_append_function();
   desmos_emit_pop_function();
