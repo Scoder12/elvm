@@ -1,10 +1,9 @@
 /**
  * Desmos ELVM compiler backend
- * Author: Spencer Pogorzelski (Scoder12)\
+ * Author: Spencer Pogorzelski (Scoder12)
  * 
  * Runs C code in desmos by emitting JSON state data for the desmos.com online graphing
  *  calculator.
- * Attempts to generate the smallest possible state to do the job.
  * 
  * Usage:
  * Copy the output of this program. 
