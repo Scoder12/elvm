@@ -20,8 +20,8 @@
 #include <target/util.h>
 
 // OPTIONS
-// Comment this out to make the resulting state slightly smaller.
-
+// for testing purposes
+#define DESMOS_MEM_SIZE 32
 // END OPTIONS
 
 
@@ -91,12 +91,18 @@ void emit_all_expressions() {
   // Begin folder
   put("{\"type\":\"folder\",\"collapsed\":true,\"id\":0,\"title\":\"Internals\"}");
 
-  // Setup variables
+  // Setup running variable
   emit_expression(VAR_RUNNING "=1");
-  
+  // Setup registers
   for (int i = 0; i < 7; i++) {
     begin_expression();
     printf("%s=0", desmos_reg_names[i]);
+    end_expression();
+  }
+  // Setup memory
+  for (int i = 0; i < DESMOS_MEM_SIZE; i++) {
+    begin_expression();
+    printf("m_{%d}=0", i);
     end_expression();
   }
 
