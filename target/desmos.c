@@ -52,16 +52,14 @@
 // Desmos expression IDs must be unique
 //  (they use them in their UI framework like the react "key" prop)
 // The UI seems to assign them sequentially, so that is what this program will do.
-static int exp_id = 0;
+// (0 is the folder)
+static int exp_id = 1;
 
 void begin_expression(void) {
-  if (exp_id != 0) {
-    // All but first expression must have a comma before it
-    put(",");
-  }
-
   // include "hidden": true to hide graphing variables unintentionally
-  put("{\"type\":\"expression\",\"hidden\":true,\"id\":");
+  // include folderId to make expression inside of the folder
+  // always include preceding comma (folder is the first item in the list)
+  put(",{\"type\":\"expression\",\"hidden\":true,\"folderId\":\"0\",\"id\":");
   printf("%d", exp_id);
   put(",\"latex\":\"");
 }
@@ -90,6 +88,9 @@ void emit_ticker_handler() {
 }
 
 void emit_all_expressions() {
+  // Begin folder
+  put("{\"type\":\"folder\",\"collapsed\":true,\"id\":0,\"title\":\"Internals\"}");
+
   // Setup variables
   emit_expression(VAR_RUNNING "=1");
   
