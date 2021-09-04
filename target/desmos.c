@@ -87,7 +87,7 @@ void emit_ticker_handler() {
   put(FUNC_UPDATE LPAREN RPAREN);
 }
 
-void emit_all_expressions(Data* data) {
+void init_state(Data* data) {
   // Begin folder
   put("{\"type\":\"folder\",\"collapsed\":true,\"id\":0,\"title\":\"Internals\"}");
 
@@ -111,10 +111,31 @@ void emit_all_expressions(Data* data) {
     printf("m_{%d}=0", mp);
     end_expression();
   }
-
-  // Setup update function
-  emit_expression(FUNC_UPDATE LPAREN RPAREN "=1");
 }
+
+void emit_func_prologue(int func_id) {
+  fprintf(stderr, "begin func %d\n", func_id);
+  begin_expression();
+  printf("f_{%d}=1", func_id);
+}
+
+void emit_func_epilogue(void) {
+  fprintf(stderr, "end func\n");
+  end_expression();
+}
+
+void emit_pc_change(int pc) {
+  fprintf(stderr, "  pc change to %d\n", pc);
+}
+
+void emit_inst(Inst* inst) {
+  fprintf(stderr, "    emit inst %p\n", inst);
+}
+
+void emit_update_function(void) {
+  // TODO
+}
+
 // End graph phases
 
 void target_desmos(Module *module) {
@@ -136,7 +157,14 @@ void target_desmos(Module *module) {
 
   // Begin expressions list
   put("\"list\":[");
-  emit_all_expressions(module->data);
+  init_state(module->data);
+  emit_chunked_main_loop(
+    module->text,
+    emit_func_prologue,
+    emit_func_epilogue,
+    emit_pc_change,
+    emit_inst
+  );
   // End expressions list
   put("]");
   // End expressions
@@ -146,5 +174,5 @@ void target_desmos(Module *module) {
   put("}");
 
   // DUMMY LINE TO AVOID "unused variable" warning
-  fprintf(stderr, "%d", module->data->v);
+  fprintf(stderr, "%d\n", module->data->v);
 }
