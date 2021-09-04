@@ -38,6 +38,15 @@
 
 #define LPAREN BSLASH "left("
 #define RPAREN BSLASH "right)"
+#define DESMOS_IF BSLASH "left" BSLASH "{"
+#define DESMOS_ENDIF BSLASH "right" BSLASH "}"
+
+// If format: { cond: truepart, falsepart }
+// You can have multiple conds too:
+//  { cond1: r1, cond2: r2, r3 }
+// These macros handle the 1 and 2 outcome cases
+#define des_if(cond,res) DESMOS_IF cond ":" res DESMOS_ENDIF
+#define des_ifelse(cond,res,el) DESMOS_IF cond ":" res "," el DESMOS_ENDIF
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -132,8 +141,11 @@ void emit_inst(Inst* inst) {
   fprintf(stderr, "    emit inst %p\n", inst);
 }
 
-void emit_update_function(void) {
-  // TODO
+void emit_update_function(int num_funcs) {
+  fprintf(stderr, "Generated %d funcs", num_funcs);
+  begin_expression();
+  put(FUNC_UPDATE LPAREN RPAREN "=" des_ifelse(VAR_RUNNING "=1", "2", "3"));
+  end_expression();
 }
 
 // End graph phases
@@ -158,13 +170,14 @@ void target_desmos(Module *module) {
   // Begin expressions list
   put("\"list\":[");
   init_state(module->data);
-  emit_chunked_main_loop(
+  int num_funcs = emit_chunked_main_loop(
     module->text,
     emit_func_prologue,
     emit_func_epilogue,
     emit_pc_change,
     emit_inst
   );
+  emit_update_function(num_funcs);
   // End expressions list
   put("]");
   // End expressions
