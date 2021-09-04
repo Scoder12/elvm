@@ -54,6 +54,8 @@
 // variables & functions (must be unique)
 #define VAR_RUNNING "r"
 #define FUNC_UPDATE "u"
+#define FUNC_CALLF "c_{allf}"
+#define FUNC_CALLF_PARAM0 "i"
 // END CONSTANTS
 
 // Helper functions
@@ -145,6 +147,15 @@ void emit_update_function(int num_funcs) {
   fprintf(stderr, "Generated %d funcs", num_funcs);
   begin_expression();
   put(FUNC_UPDATE LPAREN RPAREN "=" des_ifelse(VAR_RUNNING "=1", "2", "3"));
+  end_expression();
+
+  begin_expression();
+  put(FUNC_CALLF LPAREN FUNC_CALLF_PARAM0 RPAREN "=" DESMOS_IF);
+  for (int i = 0; i < num_funcs; i++) {
+    if (i != 0) put(",");
+    printf(FUNC_CALLF_PARAM0 "=%d:f_{%d}" LPAREN RPAREN, i, i);
+  }
+  put(DESMOS_ENDIF);
   end_expression();
 }
 
