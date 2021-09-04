@@ -54,7 +54,7 @@
 // The UI seems to assign them sequentially, so that is what this program will do.
 static int exp_id = 0;
 
-void emit_expression(char *exp) {
+void begin_expression(void) {
   if (exp_id != 0) {
     // All but first expression must have a comma before it
     put(",");
@@ -63,10 +63,18 @@ void emit_expression(char *exp) {
   put("{\"type\":\"expression\",\"id\":");
   printf("%d", exp_id);
   put(",\"latex\":\"");
-  printf("%s", exp);
+}
+
+void end_expression(void) {
   put("\"}");
 
   exp_id++;
+}
+
+void emit_expression(char *exp) {
+  begin_expression();
+  printf("%s", exp);
+  end_expression();
 }
 // End helper functions
 
