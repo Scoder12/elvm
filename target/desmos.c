@@ -87,7 +87,7 @@ void emit_ticker_handler() {
   put(FUNC_UPDATE LPAREN RPAREN);
 }
 
-void emit_all_expressions() {
+void emit_all_expressions(Data* data) {
   // Begin folder
   put("{\"type\":\"folder\",\"collapsed\":true,\"id\":0,\"title\":\"Internals\"}");
 
@@ -100,9 +100,15 @@ void emit_all_expressions() {
     end_expression();
   }
   // Setup memory
-  for (int i = 0; i < DESMOS_MEM_SIZE; i++) {
+  int mp = 0;
+  for (; data; data = data->next, mp++) {
     begin_expression();
-    printf("m_{%d}=0", i);
+    printf("m_{%d}=%d", mp, data->v);
+    end_expression();
+  }
+  for (; mp < DESMOS_MEM_SIZE; mp++) {
+    begin_expression();
+    printf("m_{%d}=0", mp);
     end_expression();
   }
 
@@ -130,7 +136,7 @@ void target_desmos(Module *module) {
 
   // Begin expressions list
   put("\"list\":[");
-  emit_all_expressions();
+  emit_all_expressions(module->data);
   // End expressions list
   put("]");
   // End expressions
