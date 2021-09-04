@@ -36,12 +36,15 @@
 // - left with 1 backslash in data
 #define BSLASH "\\\\"
 
+#define LPAREN BSLASH "left("
+#define RPAREN BSLASH "right)"
+
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
 
 // variables & functions (must be unique)
 #define VAR_RUNNING "r"
-
+#define FUNC_UPDATE "u"
 // END CONSTANTS
 
 // Helper functions
@@ -70,11 +73,15 @@ void emit_expression(char *exp) {
 
 // Graph phases
 void emit_ticker_handler() {
-  ticker_update("a", "a+1");
+  put(FUNC_UPDATE LPAREN RPAREN);
 }
 
 void emit_all_expressions() {
+  // Setup variables
   emit_expression(VAR_RUNNING "=1");
+
+  // Setup update function
+  emit_expression(FUNC_UPDATE LPAREN RPAREN "=1");
 }
 // End graph phases
 
