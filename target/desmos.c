@@ -51,11 +51,19 @@
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
 
-// variables & functions (must be unique)
+// variables, paramaters & functions
+// must all be unqiue or desmos will complain
+// (defined in one place to avoid overlap)
+// *_FMT = has a number and will be passed to printf()
 #define VAR_RUNNING "r"
 #define FUNC_UPDATE "u"
 #define FUNC_CALLF "c_{allf}"
 #define FUNC_CALLF_PARAM0 "i"
+#define VAR_MEMCELL_FMT "m_{%d}"
+#define FUNC_ASMFUNC_FMT "f_{%d}"
+const char* desmos_reg_names[7] = {
+  "a", "b", "c", "d", "b_{p}", "s_{p}", "p_{c}"
+};
 // END CONSTANTS
 
 // Helper functions
@@ -86,10 +94,6 @@ void emit_expression(char *exp) {
   printf("%s", exp);
   end_expression();
 }
-
-const char* desmos_reg_names[7] = {
-  "a", "b", "c", "d", "b_{p}", "s_{p}", "p_{c}"
-};
 // End helper functions
 
 
@@ -114,12 +118,12 @@ void init_state(Data* data) {
   int mp = 0;
   for (; data; data = data->next, mp++) {
     begin_expression();
-    printf("m_{%d}=%d", mp, data->v);
+    printf(VAR_MEMCELL_FMT "=%d", mp, data->v);
     end_expression();
   }
   for (; mp < DESMOS_MEM_SIZE; mp++) {
     begin_expression();
-    printf("m_{%d}=0", mp);
+    printf(VAR_MEMCELL_FMT "=0", mp);
     end_expression();
   }
 }
@@ -127,7 +131,7 @@ void init_state(Data* data) {
 void emit_func_prologue(int func_id) {
   fprintf(stderr, "begin func %d\n", func_id);
   begin_expression();
-  printf("f_{%d}=1", func_id);
+  printf(FUNC_ASMFUNC_FMT "=1", func_id);
 }
 
 void emit_func_epilogue(void) {
@@ -153,7 +157,7 @@ void emit_update_function(int num_funcs) {
   put(FUNC_CALLF LPAREN FUNC_CALLF_PARAM0 RPAREN "=" DESMOS_IF);
   for (int i = 0; i < num_funcs; i++) {
     if (i != 0) put(",");
-    printf(FUNC_CALLF_PARAM0 "=%d:f_{%d}" LPAREN RPAREN, i, i);
+    printf(FUNC_CALLF_PARAM0 "=%d:" FUNC_ASMFUNC_FMT LPAREN RPAREN, i, i);
   }
   put(DESMOS_ENDIF);
   end_expression();
