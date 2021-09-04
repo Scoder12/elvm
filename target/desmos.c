@@ -60,7 +60,8 @@ void begin_expression(void) {
     put(",");
   }
 
-  put("{\"type\":\"expression\",\"id\":");
+  // include "hidden": true to hide graphing variables unintentionally
+  put("{\"type\":\"expression\",\"hidden\":true,\"id\":");
   printf("%d", exp_id);
   put(",\"latex\":\"");
 }
@@ -76,6 +77,10 @@ void emit_expression(char *exp) {
   printf("%s", exp);
   end_expression();
 }
+
+const char* desmos_reg_names[7] = {
+  "a", "b", "c", "d", "b_{p}", "s_{p}", "p_{c}"
+};
 // End helper functions
 
 
@@ -87,6 +92,12 @@ void emit_ticker_handler() {
 void emit_all_expressions() {
   // Setup variables
   emit_expression(VAR_RUNNING "=1");
+  
+  for (int i = 0; i < 7; i++) {
+    begin_expression();
+    printf("%s=0", desmos_reg_names[i]);
+    end_expression();
+  }
 
   // Setup update function
   emit_expression(FUNC_UPDATE LPAREN RPAREN "=1");
