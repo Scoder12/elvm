@@ -22,7 +22,6 @@
 
 // OPTIONS
 // Comment this out to make the resulting state slightly smaller.
-#define DEBUG
 
 // END OPTIONS
 
@@ -40,6 +39,9 @@
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
+
+// variables & functions (must be unique)
+#define VAR_RUNNING "r"
 
 // END CONSTANTS
 
@@ -73,8 +75,7 @@ void emit_ticker_handler() {
 }
 
 void emit_all_expressions() {
-  emit_expression("a=0");
-  emit_expression("b=2");
+  emit_expression(VAR_RUNNING "=1");
 }
 // End graph phases
 
@@ -90,9 +91,7 @@ void target_desmos(Module *module) {
   emit_ticker_handler();
   // End ticker
   put("\",");
-  #ifdef DEBUG
   put("\"open\":true,");
-  #endif
   put("\"playing\":true");
   // if "minStepLatex" is not specified it defaults to 0ms (fastest execution possible)
   put("},");
