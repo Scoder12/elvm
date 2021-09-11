@@ -84,13 +84,25 @@ const char* desmos_reg_names[7] = {
 // The UI seems to assign them sequentially, so that is what this program will do.
 // (0 is the folder)
 static int exp_id = 1;
+static int folder_id = -1;
+
+void begin_folder(char *name) {
+  if (exp_id != 1) put(",");
+  printf(
+    "{\"type\":\"folder\",\"collapsed\":true,\"id\":%d,\"title\":\"%s\"}",
+    exp_id, name
+  );
+  folder_id = exp_id;
+  exp_id++;
+}
 
 void begin_expression(void) {
+  if (exp_id != 1) put(",");
   // include "hidden": true to hide graphing variables unintentionally
   // include folderId to make expression inside of the folder
   // always include preceding comma (folder is the first item in the list)
-  put(",{\"type\":\"expression\",\"hidden\":true,\"folderId\":\"0\",\"id\":");
-  printf("%d", exp_id);
+  put("{\"type\":\"expression\",\"hidden\":true,\"folderId\":\"");
+  printf("%d\",\"id\":%d", folder_id, exp_id);
   put(",\"latex\":\"");
 }
 
@@ -114,10 +126,8 @@ void emit_ticker_handler() {
 }
 
 void init_state(Data* data) {
-  // Begin folder
-  put("{\"type\":\"folder\",\"collapsed\":true,\"id\":0,\"title\":\"Internals\"}");
-
-  // Setup running variable
+  // Begin registers folder
+  begin_folder("Registers");
   emit_expression(VAR_RUNNING "=1");
   // Setup registers
   for (int i = 0; i < 7; i++) {
@@ -127,6 +137,8 @@ void init_state(Data* data) {
   }
   // not technically a register
   emit_expression(VAR_IP "=0");
+
+  begin_folder("Memory");
   // Setup memory
   int mp = 0;
   for (; data; data = data->next, mp++) {
@@ -139,6 +151,7 @@ void init_state(Data* data) {
     printf(VAR_MEMCELL_FMT "=0", mp);
     end_expression();
   }
+  begin_folder("Code");
 }
 
 void emit_check_function(void) {
