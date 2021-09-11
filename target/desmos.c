@@ -40,7 +40,7 @@
 #define RPAREN BSLASH "right)"
 #define DESMOS_IF BSLASH "left" BSLASH "{"
 #define DESMOS_ENDIF BSLASH "right" BSLASH "}"
-#define ACTION_SETTO BSLASH "to"
+#define ACTION_SETTO BSLASH "to "
 
 // If format: { cond: truepart, falsepart }
 // You can have multiple conds too:
@@ -57,9 +57,11 @@
 // (defined in one place to avoid overlap)
 // *_FMT = has a number and will be passed to printf()
 #define VAR_RUNNING "r"
-#define FUNC_CHECK "c" // preferably short since it is used a lot
+#define FUNC_CHECK "k" // preferably short since it is used a lot
 #define FUNC_CHECK_PARAM0 "p"
 #define FUNC_CHECK_PARAM1 "i"
+#define FUNC_CHANGEPC "c_{pc}"
+#define FUNC_CHANGEPC_PARAM0 "p"
 #define FUNC_UPDATE "u"
 #define FUNC_CALLF "c_{allf}"
 #define FUNC_CALLF_PARAM0 "i"
@@ -147,10 +149,20 @@ void emit_check_function(void) {
   );
 }
 
+void emit_changepc_function(void) {
+  emit_expression(
+    FUNC_CHANGEPC LPAREN FUNC_CHANGEPC_PARAM0 RPAREN "="
+    VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0"
+  );
+}
+
+static int is_first_inst = 1;
+
 void emit_func_prologue(int func_id) {
   fprintf(stderr, "begin func %d\n", func_id);
+  is_first_inst = 1;
   begin_expression();
-  printf(FUNC_ASMFUNC_FMT "=" DESMOS_IF, func_id);
+  printf(FUNC_ASMFUNC_FMT LPAREN RPAREN "=" DESMOS_IF, func_id);
 }
 
 void emit_func_epilogue(void) {
@@ -168,15 +180,32 @@ void emit_pc_change(int pc) {
   curr_ip = 0;
 }
 
+char* desmos_value_str(Value *v) {
+  if (v->type == IMM) {
+    return format("%d", v->imm - 1);
+  } else if (v->type == REG) {
+    return format("%s-1", desmos_reg_names[v->reg]);
+  } else {
+    error("Invalid value type %d", v->type);
+  }
+}
+
 void emit_inst(Inst* inst) {
   // TODO: Group instructions as much as possible
   // For each case, you can set each variable once
   // So group until a variable that has already been set needs to be touched
 
+  fprintf(stderr, "ifi=%d", is_first_inst);
+  if (is_first_inst) {
+    is_first_inst = 0;
+  } else {
+    put(",");
+  }
   printf(FUNC_CHECK LPAREN "%d,%d" RPAREN "=1:", curr_pc, curr_ip++);
 
   switch (inst->op) {
     case JMP:
+      printf(FUNC_CHANGEPC LPAREN "%s" RPAREN, desmos_value_str(&inst->jmp));
       break;
 
     case EXIT:
@@ -186,8 +215,6 @@ void emit_inst(Inst* inst) {
     default:
       error("Instruction not implemented: %d", inst->op);
   }
-
-  put(",");
 }
 
 void emit_update_function(int num_funcs) {
@@ -236,6 +263,7 @@ void target_desmos(Module *module) {
     emit_inst
   );
   emit_check_function();
+  emit_changepc_function();
   emit_update_function(num_funcs);
   // End expressions list
   put("]");
