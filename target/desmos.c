@@ -231,11 +231,22 @@ void emit_inst(Inst* inst) {
 }
 
 void emit_update_function(int num_funcs) {
+  // update function
   fprintf(stderr, "Generated %d funcs", num_funcs);
   begin_expression();
-  put(FUNC_UPDATE LPAREN RPAREN "=" des_ifelse(VAR_RUNNING "=1", "2", "3"));
+  printf(
+    FUNC_UPDATE LPAREN RPAREN "=" 
+    des_if(
+      VAR_RUNNING "=1", 
+      FUNC_CALLF LPAREN 
+        BSLASH "operatorname{floor}" LPAREN BSLASH "frac{" VAR_PC "}{%d}" RPAREN 
+      RPAREN
+    ), 
+    CHUNKED_FUNC_SIZE
+  );
   end_expression();
 
+  // callf function
   begin_expression();
   put(FUNC_CALLF LPAREN FUNC_CALLF_PARAM0 RPAREN "=" DESMOS_IF);
   for (int i = 0; i < num_funcs; i++) {
