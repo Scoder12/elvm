@@ -43,7 +43,6 @@
 #define DESMOS_ELSE ","
 #define DESMOS_ENDIF BSLASH "right" BSLASH "}"
 #define ACTION_SETTO BSLASH "to "
-#define BUILTIN_FLOOR BSLASH "operatorname{floor}"
 
 // If format: { cond: truepart, falsepart }
 // You can have multiple conds too:
@@ -53,6 +52,7 @@
 #define des_ifelse(cond,res,el) DESMOS_IF cond DESMOS_THEN res DESMOS_ELSE el DESMOS_ENDIF
 
 #define des_call(func, args) func LPAREN args RPAREN
+#define des_builtin(func) BSLASH "operatorname{" func "}"
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -77,6 +77,7 @@
 // the instruction number (relative to the program counter)
 // reset each time the program counter changes.
 #define VAR_IP "i_{p}"
+#define VAR_NEWIP "n_{ip}"
 const char* desmos_reg_names[7] = {
   "a", "b", "c", "d", "b_{p}", "s_{p}", VAR_PC
 };
@@ -127,7 +128,10 @@ void emit_expression(char *exp) {
 
 // Graph phases
 void emit_ticker_handler() {
-  put(des_call(FUNC_UPDATE, ""));
+  put(
+    des_call(FUNC_UPDATE, "") "," 
+    VAR_IP ACTION_SETTO des_call(des_builtin("max"), VAR_NEWIP "," VAR_IP) "+1"
+  );
 }
 
 void init_state(Data* data) {
@@ -142,6 +146,7 @@ void init_state(Data* data) {
   }
   // not technically a register
   emit_expression(VAR_IP "=0");
+  emit_expression(VAR_NEWIP "=0");
 
   begin_folder("Memory");
   // Setup memory
@@ -170,7 +175,8 @@ void emit_check_function(void) {
 void emit_changepc_function(void) {
   emit_expression(
     des_call(FUNC_CHANGEPC, FUNC_CHANGEPC_PARAM0) "="
-    VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0"
+    // set to -1 as it will be updated to 0 on next update
+    VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_NEWIP ACTION_SETTO "-1"
   );
 }
 
@@ -244,7 +250,7 @@ void emit_update_function(int num_funcs) {
       VAR_RUNNING "=1", 
       des_call(
         FUNC_CALLF, 
-        des_call(BUILTIN_FLOOR, BSLASH "frac{" VAR_PC "}{%d}")
+        des_call(des_builtin("floor"), BSLASH "frac{" VAR_PC "}{%d}")
       )
     ), 
     CHUNKED_FUNC_SIZE
