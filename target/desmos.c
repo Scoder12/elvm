@@ -72,12 +72,12 @@
 #define FUNC_CALLF_PARAM0 "i"
 #define VAR_MEMCELL_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
+#define ACTION_INC_IP "n"
 // registers
 #define VAR_PC "p_{c}"
 // the instruction number (relative to the program counter)
 // reset each time the program counter changes.
 #define VAR_IP "i_{p}"
-#define VAR_NEWIP "n_{ip}"
 const char* desmos_reg_names[7] = {
   "a", "b", "c", "d", "b_{p}", "s_{p}", VAR_PC
 };
@@ -128,10 +128,7 @@ void emit_expression(char *exp) {
 
 // Graph phases
 void emit_ticker_handler() {
-  put(
-    des_call(FUNC_UPDATE, "") "," 
-    VAR_IP ACTION_SETTO des_call(des_builtin("max"), VAR_NEWIP "," VAR_IP) "+1"
-  );
+  put(des_call(FUNC_UPDATE, ""));
 }
 
 void init_state(Data* data) {
@@ -146,7 +143,6 @@ void init_state(Data* data) {
   }
   // not technically a register
   emit_expression(VAR_IP "=0");
-  emit_expression(VAR_NEWIP "=0");
 
   begin_folder("Memory");
   // Setup memory
@@ -162,6 +158,7 @@ void init_state(Data* data) {
     end_expression();
   }
   begin_folder("Code");
+  emit_expression(ACTION_INC_IP "=" VAR_IP ACTION_SETTO VAR_IP "+1");
 }
 
 void emit_check_function(void) {
@@ -175,8 +172,11 @@ void emit_check_function(void) {
 void emit_changepc_function(void) {
   emit_expression(
     des_call(FUNC_CHANGEPC, FUNC_CHANGEPC_PARAM0) "="
-    // set to -1 as it will be updated to 0 on next update
-    VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_NEWIP ACTION_SETTO "-1"
+    des_ifelse(
+      VAR_PC "=" FUNC_CHANGEPC_PARAM0,
+      ACTION_INC_IP,
+      LPAREN VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0" RPAREN
+    )
   );
 }
 
@@ -198,8 +198,22 @@ void emit_func_epilogue(void) {
 static int curr_pc = -1;
 static int curr_ip = -1;
 
+void next_inst(void) {
+  if (is_first_inst) {
+    is_first_inst = 0;
+  } else {
+    put(DESMOS_ELSE);
+  }
+  printf(des_call(FUNC_CHECK, "%d,%d") "=1" DESMOS_THEN, curr_pc, curr_ip++);
+}
+
 void emit_pc_change(int pc) {
   fprintf(stderr, "  pc change to %d\n", pc);
+  if (curr_pc != -1) {
+    next_inst();
+    printf(des_call(FUNC_CHANGEPC, "%d"), curr_pc + 1);
+  }
+
   curr_pc = pc;
   curr_ip = 0;
 }
@@ -214,17 +228,15 @@ char* desmos_value_str(Value *v) {
   }
 }
 
+void inc_ip(void) {
+  put("," ACTION_INC_IP);
+}
+
 void emit_inst(Inst* inst) {
   // TODO: Group instructions as much as possible
   // For each case, you can set each variable once
   // So group until a variable that has already been set needs to be touched
-
-  if (is_first_inst) {
-    is_first_inst = 0;
-  } else {
-    put(DESMOS_ELSE);
-  }
-  printf(des_call(FUNC_CHECK, "%d,%d") "=1" DESMOS_THEN, curr_pc, curr_ip++);
+  next_inst();
 
   switch (inst->op) {
     case JMP:
@@ -232,7 +244,9 @@ void emit_inst(Inst* inst) {
       break;
 
     case EXIT:
-      put(VAR_RUNNING ACTION_SETTO "0");
+      put(LPAREN VAR_RUNNING ACTION_SETTO "0");
+      inc_ip();
+      put(RPAREN);
       break;
 
     default:
