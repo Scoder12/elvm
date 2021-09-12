@@ -277,7 +277,8 @@ void target_desmos(Module *module) {
   // End ticker
   put("\",");
   put("\"open\":true,");
-  put("\"playing\":true");
+  // change this if you want it to start automatically
+  put("\"playing\":false");
   // if "minStepLatex" is not specified it defaults to 0ms (fastest execution possible)
   put("},");
 
