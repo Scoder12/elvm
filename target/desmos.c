@@ -256,6 +256,10 @@ void emit_inst(Inst* inst) {
   next_inst();
 
   switch (inst->op) {
+    case MOV:
+      printf(des_parens("%s" ACTION_SETTO "%s" inc_ip()), desmos_reg_names[inst->dst.reg], desmos_value_str(&inst->src));
+      break;
+
     case JMP:
       printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str_minus1(&inst->jmp));
       break;
