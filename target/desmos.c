@@ -43,6 +43,8 @@
 #define DESMOS_ELSE ","
 #define DESMOS_ENDIF BSLASH "right" BSLASH "}"
 #define ACTION_SETTO BSLASH "to "
+#define DESMOS_LBRAC BSLASH "left["
+#define DESMOS_RBRAC BSLASH "right]"
 
 // If format: { cond: truepart, falsepart }
 // You can have multiple conds too:
@@ -50,9 +52,11 @@
 // These macros handle the 1 and 2 outcome cases
 #define des_if(cond,res) DESMOS_IF cond DESMOS_THEN res DESMOS_ENDIF
 #define des_ifelse(cond,res,el) DESMOS_IF cond DESMOS_THEN res DESMOS_ELSE el DESMOS_ENDIF
-
 #define des_call(func, args) func LPAREN args RPAREN
 #define des_builtin(func) BSLASH "operatorname{" func "}"
+#define des_array(contents) DESMOS_LBRAC contents DESMOS_RBRAC
+#define inc_ip() "," ACTION_INC_IP
+#define des_parens(contents) LPAREN contents RPAREN
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -61,6 +65,9 @@
 // must all be unqiue or desmos will complain
 // (defined in one place to avoid overlap)
 // *_FMT = has a number and will be passed to printf()
+#define VAR_STDIN "s_{tdin}"
+#define VAR_STDIN_IND "s_{tdinp}"
+#define VAR_STDOUT "s_{tdout}"
 #define VAR_RUNNING "r"
 #define FUNC_CHECK "k" // preferably short since it is used a lot
 #define FUNC_CHECK_PARAM0 "p"
@@ -132,6 +139,10 @@ void emit_ticker_handler() {
 }
 
 void init_state(Data* data) {
+  begin_folder("IO");
+  emit_expression(VAR_STDIN "=" des_array(""));
+  emit_expression(VAR_STDOUT "=0");
+
   // Begin registers folder
   begin_folder("Registers");
   emit_expression(VAR_RUNNING "=1");
@@ -220,16 +231,22 @@ void emit_pc_change(int pc) {
 
 char* desmos_value_str(Value *v) {
   if (v->type == IMM) {
+    return format("%d", v->imm);
+  } else if (v->type == REG) {
+    return format("%s", desmos_reg_names[v->reg]);
+  } else {
+    error("Invalid value type %d", v->type);
+  }
+}
+
+char* desmos_value_str_minus1(Value *v) {
+  if (v->type == IMM) {
     return format("%d", v->imm - 1);
   } else if (v->type == REG) {
     return format("%s-1", desmos_reg_names[v->reg]);
   } else {
     error("Invalid value type %d", v->type);
   }
-}
-
-void inc_ip(void) {
-  put("," ACTION_INC_IP);
 }
 
 void emit_inst(Inst* inst) {
@@ -240,11 +257,15 @@ void emit_inst(Inst* inst) {
 
   switch (inst->op) {
     case JMP:
-      printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str(&inst->jmp));
+      printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str_minus1(&inst->jmp));
       break;
 
     case EXIT:
-      put(LPAREN VAR_RUNNING ACTION_SETTO "0");
+      put(VAR_RUNNING ACTION_SETTO "0");
+      break;
+    
+    case PUTC:
+      printf(des_parens(VAR_STDOUT ACTION_SETTO "%s" inc_ip()), desmos_value_str(&inst->src));
       break;
 
     default:
