@@ -43,6 +43,7 @@
 #define DESMOS_ELSE ","
 #define DESMOS_ENDIF BSLASH "right" BSLASH "}"
 #define ACTION_SETTO BSLASH "to "
+#define BUILTIN_FLOOR BSLASH "operatorname{floor}"
 
 // If format: { cond: truepart, falsepart }
 // You can have multiple conds too:
@@ -50,6 +51,8 @@
 // These macros handle the 1 and 2 outcome cases
 #define des_if(cond,res) DESMOS_IF cond DESMOS_THEN res DESMOS_ENDIF
 #define des_ifelse(cond,res,el) DESMOS_IF cond DESMOS_THEN res DESMOS_ELSE el DESMOS_ENDIF
+
+#define des_call(func, args) func LPAREN args RPAREN
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -124,7 +127,7 @@ void emit_expression(char *exp) {
 
 // Graph phases
 void emit_ticker_handler() {
-  put(FUNC_UPDATE LPAREN RPAREN);
+  put(des_call(FUNC_UPDATE, ""));
 }
 
 void init_state(Data* data) {
@@ -159,14 +162,14 @@ void init_state(Data* data) {
 void emit_check_function(void) {
   // Returns 1 if pc and ip matches the given paramaters.
   emit_expression(
-    FUNC_CHECK LPAREN FUNC_CHECK_PARAM0 "," FUNC_CHECK_PARAM1 RPAREN "="
+    des_call(FUNC_CHECK, FUNC_CHECK_PARAM0 "," FUNC_CHECK_PARAM1) "="
     des_if(VAR_PC "=" FUNC_CHECK_PARAM0, des_if(VAR_IP "=" FUNC_CHECK_PARAM1, "1"))
   );
 }
 
 void emit_changepc_function(void) {
   emit_expression(
-    FUNC_CHANGEPC LPAREN FUNC_CHANGEPC_PARAM0 RPAREN "="
+    des_call(FUNC_CHANGEPC, FUNC_CHANGEPC_PARAM0) "="
     VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0"
   );
 }
@@ -177,7 +180,7 @@ void emit_func_prologue(int func_id) {
   fprintf(stderr, "begin func %d\n", func_id);
   is_first_inst = 1;
   begin_expression();
-  printf(FUNC_ASMFUNC_FMT LPAREN RPAREN "=" DESMOS_IF, func_id);
+  printf(des_call(FUNC_ASMFUNC_FMT, "") "=" DESMOS_IF, func_id);
 }
 
 void emit_func_epilogue(void) {
@@ -215,11 +218,11 @@ void emit_inst(Inst* inst) {
   } else {
     put(DESMOS_ELSE);
   }
-  printf(FUNC_CHECK LPAREN "%d,%d" RPAREN "=1" DESMOS_THEN, curr_pc, curr_ip++);
+  printf(des_call(FUNC_CHECK, "%d,%d") "=1" DESMOS_THEN, curr_pc, curr_ip++);
 
   switch (inst->op) {
     case JMP:
-      printf(FUNC_CHANGEPC LPAREN "%s" RPAREN, desmos_value_str(&inst->jmp));
+      printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str(&inst->jmp));
       break;
 
     case EXIT:
@@ -236,12 +239,13 @@ void emit_update_function(int num_funcs) {
   fprintf(stderr, "Generated %d funcs", num_funcs);
   begin_expression();
   printf(
-    FUNC_UPDATE LPAREN RPAREN "=" 
+    des_call(FUNC_UPDATE, "") "=" 
     des_if(
       VAR_RUNNING "=1", 
-      FUNC_CALLF LPAREN 
-        BSLASH "operatorname{floor}" LPAREN BSLASH "frac{" VAR_PC "}{%d}" RPAREN 
-      RPAREN
+      des_call(
+        FUNC_CALLF, 
+        des_call(BUILTIN_FLOOR, BSLASH "frac{" VAR_PC "}{%d}")
+      )
     ), 
     CHUNKED_FUNC_SIZE
   );
@@ -249,10 +253,10 @@ void emit_update_function(int num_funcs) {
 
   // callf function
   begin_expression();
-  put(FUNC_CALLF LPAREN FUNC_CALLF_PARAM0 RPAREN "=" DESMOS_IF);
+  put(des_call(FUNC_CALLF, FUNC_CALLF_PARAM0) "=" DESMOS_IF);
   for (int i = 0; i < num_funcs; i++) {
     if (i != 0) put(",");
-    printf(FUNC_CALLF_PARAM0 "=%d" DESMOS_THEN FUNC_ASMFUNC_FMT LPAREN RPAREN, i, i);
+    printf(FUNC_CALLF_PARAM0 "=%d" DESMOS_THEN des_call(FUNC_ASMFUNC_FMT, ""), i, i);
   }
   put(DESMOS_ENDIF);
   end_expression();
