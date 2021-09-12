@@ -245,8 +245,6 @@ void emit_inst(Inst* inst) {
 
     case EXIT:
       put(LPAREN VAR_RUNNING ACTION_SETTO "0");
-      inc_ip();
-      put(RPAREN);
       break;
 
     default:
