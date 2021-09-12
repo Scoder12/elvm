@@ -39,6 +39,8 @@
 #define LPAREN BSLASH "left("
 #define RPAREN BSLASH "right)"
 #define DESMOS_IF BSLASH "left" BSLASH "{"
+#define DESMOS_THEN ":"
+#define DESMOS_ELSE ","
 #define DESMOS_ENDIF BSLASH "right" BSLASH "}"
 #define ACTION_SETTO BSLASH "to "
 
@@ -46,8 +48,8 @@
 // You can have multiple conds too:
 //  { cond1: r1, cond2: r2, r3 }
 // These macros handle the 1 and 2 outcome cases
-#define des_if(cond,res) DESMOS_IF cond ":" res DESMOS_ENDIF
-#define des_ifelse(cond,res,el) DESMOS_IF cond ":" res "," el DESMOS_ENDIF
+#define des_if(cond,res) DESMOS_IF cond DESMOS_THEN res DESMOS_ENDIF
+#define des_ifelse(cond,res,el) DESMOS_IF cond DESMOS_THEN res DESMOS_ELSE el DESMOS_ENDIF
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -208,13 +210,12 @@ void emit_inst(Inst* inst) {
   // For each case, you can set each variable once
   // So group until a variable that has already been set needs to be touched
 
-  fprintf(stderr, "ifi=%d", is_first_inst);
   if (is_first_inst) {
     is_first_inst = 0;
   } else {
-    put(",");
+    put(DESMOS_ELSE);
   }
-  printf(FUNC_CHECK LPAREN "%d,%d" RPAREN "=1:", curr_pc, curr_ip++);
+  printf(FUNC_CHECK LPAREN "%d,%d" RPAREN "=1" DESMOS_THEN, curr_pc, curr_ip++);
 
   switch (inst->op) {
     case JMP:
@@ -251,7 +252,7 @@ void emit_update_function(int num_funcs) {
   put(FUNC_CALLF LPAREN FUNC_CALLF_PARAM0 RPAREN "=" DESMOS_IF);
   for (int i = 0; i < num_funcs; i++) {
     if (i != 0) put(",");
-    printf(FUNC_CALLF_PARAM0 "=%d:" FUNC_ASMFUNC_FMT LPAREN RPAREN, i, i);
+    printf(FUNC_CALLF_PARAM0 "=%d" DESMOS_THEN FUNC_ASMFUNC_FMT LPAREN RPAREN, i, i);
   }
   put(DESMOS_ENDIF);
   end_expression();
