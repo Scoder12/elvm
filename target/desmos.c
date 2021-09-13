@@ -68,7 +68,6 @@
 // (defined in one place to avoid overlap)
 // *_FMT = has a number and will be passed to printf()
 #define VAR_STDIN "s_{tdin}"
-#define VAR_STDIN_IND "s_{tdinp}"
 #define VAR_STDOUT "s_{tdout}"
 #define VAR_RUNNING "r"
 #define FUNC_CHECK "k" // preferably short since it is used a lot
@@ -82,6 +81,7 @@
 #define FUNC_APPEND_PARAM0 "l"
 #define FUNC_APPEND_PARAM1 "i"
 #define FUNC_POP "p_{op}"
+#define FUNC_POP_PARAM0 "l"
 #define FUNC_CALLF_PARAM0 "i"
 #define VAR_MEMCELL_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
@@ -150,8 +150,6 @@ void emit_ticker_handler() {
 void init_state(Data* data) {
   begin_folder("IO");
   emit_expression(VAR_STDIN "=" des_array(""));
-  // desmos arrays used 1 based indexing
-  emit_expression(VAR_STDIN_IND "=1");
   emit_expression(VAR_STDOUT "=" des_array(""));
 
   // Begin registers folder
@@ -204,6 +202,24 @@ void emit_append_function(void) {
       "n" BSLASH "le" des_call(des_builtin("length"), FUNC_APPEND_PARAM0),
       FUNC_APPEND_PARAM0 des_array("n"),
       FUNC_APPEND_PARAM1
+    )
+  );
+}
+
+void emit_pop_function(void) {
+  // pop(arr) is the same as python's arr[1:]
+  // how it is implemented (pseudocode)
+  // if len(arr) < 2: return []
+  // else: return map(range(1, len(arr)), n => arr[n])
+
+  emit_expression(
+    des_call(FUNC_POP, FUNC_POP_PARAM0) "="
+    des_ifelse(
+      des_call(des_builtin("length"), FUNC_POP_PARAM0) "<2",
+      des_array(""),
+      des_sum(
+        des_array("2,...," des_call(des_builtin("length"), FUNC_POP_PARAM0))
+      ) FUNC_POP_PARAM0 des_array("n")
     )
   );
 }
@@ -312,9 +328,13 @@ void emit_inst(Inst* inst) {
       break;
 
     case GETC:
-      printf(inc_ip("%s" ACTION_SETTO VAR_STDIN DESMOS_LBRAC VAR_STDIN_IND DESMOS_RBRAC), desmos_reg_names[inst->dst.reg]);
-      next_inst();
-      put(inc_ip(VAR_STDIN_IND ACTION_SETTO VAR_STDIN_IND "+1"));
+      printf(
+        inc_ip(
+          "%s" ACTION_SETTO VAR_STDIN des_array("1") ","
+          VAR_STDIN ACTION_SETTO des_call(FUNC_POP, VAR_STDIN)
+        ), 
+        desmos_reg_names[inst->dst.reg]
+      );
       break;
 
     default:
@@ -381,6 +401,7 @@ void target_desmos(Module *module) {
     emit_inst
   );
   emit_append_function();
+  emit_pop_function();
   emit_check_function();
   emit_changepc_function();
   emit_update_function(num_funcs);
