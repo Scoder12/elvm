@@ -65,6 +65,7 @@
 // must all be unqiue or desmos will complain
 // (defined in one place to avoid overlap)
 // *_FMT = has a number and will be passed to printf()
+#define ACTION_RESET "r_{eset}"
 #define VAR_STDIN "s_{tdin}"
 #define VAR_STDIN_IND "s_{tdinp}"
 #define VAR_STDOUT "s_{tdout}"
@@ -142,7 +143,26 @@ void emit_ticker_handler() {
 }
 
 void init_state(Data* data) {
-  begin_folder("IO");
+  // Reset action
+  begin_expression();
+  put(
+    ACTION_RESET "=" VAR_RUNNING ACTION_SETTO "1," VAR_STDIN_IND ACTION_SETTO "1,"
+    VAR_STDOUT ACTION_SETTO "0"
+  );
+  // Reset registers
+  for (int i = 0; i < 7; i++) {
+    printf(",%s" ACTION_SETTO "0", desmos_reg_names[i]);
+  }
+  // Reset memory
+  int mp = 0;
+  for (; data; data = data->next, mp++) {
+    printf("," VAR_MEMCELL_FMT ACTION_SETTO "%d", mp, data->v);
+  }
+  for (; mp < DESMOS_MEM_SIZE; mp++) {
+    printf("," VAR_MEMCELL_FMT ACTION_SETTO "0", mp);
+  }
+  end_expression();
+
   emit_expression(VAR_STDIN "=" des_array(""));
   // desmos arrays used 1 based indexing
   emit_expression(VAR_STDIN_IND "=1");
@@ -162,7 +182,7 @@ void init_state(Data* data) {
 
   begin_folder("Memory");
   // Setup memory
-  int mp = 0;
+  mp = 0;
   for (; data; data = data->next, mp++) {
     begin_expression();
     printf(VAR_MEMCELL_FMT "=%d", mp, data->v);
