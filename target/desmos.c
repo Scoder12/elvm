@@ -114,8 +114,11 @@ void begin_expression(void) {
   // include "hidden": true to hide graphing variables unintentionally
   // include folderId to make expression inside of the folder
   // always include preceding comma (folder is the first item in the list)
-  put("{\"type\":\"expression\",\"hidden\":true,\"folderId\":\"");
-  printf("%d\",\"id\":%d", folder_id, exp_id);
+  put("{\"type\":\"expression\",\"hidden\":true,");
+  if (folder_id != -1) {
+    printf("\"folderId\":\"%d\",", folder_id);
+  }
+  printf("\"id\":%d", exp_id);
   put(",\"latex\":\"");
 }
 
