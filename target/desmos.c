@@ -15,7 +15,6 @@
 */
 #include <ctype.h>
 #include <ir/ir.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <target/util.h>
@@ -81,26 +80,14 @@
 #define VAR_MEMCELL_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
 #define ACTION_INC_IP "n"
-// register variables
-#define REG_A "a"
-#define REG_B "b"
-#define REG_C "c"
-#define REG_D "d"
-#define REG_BP "b_{p}"
-#define REG_SP "s_{p}"
-#define REG_PC "p_{c}"
+// registers
+#define VAR_PC "p_{c}"
 // the instruction number (relative to the program counter)
 // reset each time the program counter changes.
 #define VAR_IP "i_{p}"
 const char* desmos_reg_names[7] = {
-  REG_A, REG_B, REG_C, REG_D, REG_BP, REG_SP, REG_PC
+  "a", "b", "c", "d", "b_{p}", "s_{p}", VAR_PC
 };
-// not in the reg enum
-#define DES_REG_PC 6
-#define DES_REG_IP 7
-#define DES_REG_STDOUT 8
-#define DES_REG_RUNNING 9
-#define DES_NUM_REGS 10
 // END CONSTANTS
 
 // Helper functions
@@ -189,7 +176,7 @@ void emit_check_function(void) {
   // Returns 1 if pc and ip matches the given paramaters.
   emit_expression(
     des_call(FUNC_CHECK, FUNC_CHECK_PARAM0 "," FUNC_CHECK_PARAM1) "="
-    des_if(REG_PC "=" FUNC_CHECK_PARAM0, des_if(VAR_IP "=" FUNC_CHECK_PARAM1, "1"))
+    des_if(VAR_PC "=" FUNC_CHECK_PARAM0, des_if(VAR_IP "=" FUNC_CHECK_PARAM1, "1"))
   );
 }
 
@@ -197,9 +184,9 @@ void emit_changepc_function(void) {
   emit_expression(
     des_call(FUNC_CHANGEPC, FUNC_CHANGEPC_PARAM0) "="
     des_ifelse(
-      REG_PC "=" FUNC_CHANGEPC_PARAM0,
+      VAR_PC "=" FUNC_CHANGEPC_PARAM0,
       ACTION_INC_IP,
-      des_parens(REG_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0")
+      LPAREN VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0" RPAREN
     )
   );
 }
@@ -215,27 +202,20 @@ void emit_func_prologue(int func_id) {
 
 void emit_func_epilogue(void) {
   fprintf(stderr, "end func\n");
-  put(RPAREN DESMOS_ENDIF);
+  put(DESMOS_ENDIF);
   end_expression();
 }
 
 static int curr_pc = -1;
 static int curr_ip = -1;
-static bool did_change_pc = false;
-static bool did_exit = false;
-// 7 regs + ip + running
-static bool touched_registers[DES_NUM_REGS];
 
 void next_inst(void) {
   if (is_first_inst) {
     is_first_inst = 0;
   } else {
-    if (!did_change_pc) {
-      put(inc_ip());
-    }
-    put(RPAREN DESMOS_ELSE);
+    put(DESMOS_ELSE);
   }
-  printf(des_call(FUNC_CHECK, "%d,%d") "=1" DESMOS_THEN LPAREN, curr_pc, curr_ip++);
+  printf(des_call(FUNC_CHECK, "%d,%d") "=1" DESMOS_THEN, curr_pc, curr_ip++);
 }
 
 void emit_pc_change(int pc) {
@@ -247,8 +227,6 @@ void emit_pc_change(int pc) {
 
   curr_pc = pc;
   curr_ip = 0;
-  did_exit = false;
-  memset(&touched_registers, false, sizeof(bool) * DES_NUM_REGS);
 }
 
 char* desmos_value_str(Value *v) {
@@ -271,78 +249,27 @@ char* desmos_value_str_minus1(Value *v) {
   }
 }
 
-bool need_new_group(Inst* inst) {
-  if (did_exit) return true;
-
-  switch (inst->op) {
-    case MOV:
-      return touched_registers[inst->dst.reg];
-    
-    case JMP:
-      return touched_registers[DES_REG_PC] || touched_registers[DES_REG_IP];
-    
-    case PUTC:
-      return touched_registers[DES_REG_STDOUT];
-    
-    case EXIT:
-      return touched_registers[DES_REG_RUNNING];
-
-    default:
-      error("Instruction not implemented in need_new_group: %d", inst->op);
-  }
-}
-
-// Same as need_new_group function except setting values instead of getting them
-void update_touched_registers(Inst* inst) {
-  switch (inst->op) {
-    case MOV:
-      touched_registers[inst->dst.reg] = true;
-      break;
-    
-    case JMP:
-      touched_registers[DES_REG_PC] = true;
-      touched_registers[DES_REG_IP] = true;
-      break;
-    
-    case PUTC:
-      touched_registers[DES_REG_STDOUT] = true;
-      break;
-    
-    case EXIT:
-      touched_registers[DES_REG_RUNNING] = true;
-      break;
-    
-    default:
-      error("Instruction not implemented in update_touched_registers: %d", inst->op);
-  }
-}
-
 void emit_inst(Inst* inst) {
-  if (is_first_inst) {
-    next_inst();
-  } else if (need_new_group(inst)) {
-    put(inc_ip());
-    next_inst();
-  } else {
-    put(",");
-  }
+  // TODO: Group instructions as much as possible
+  // For each case, you can set each variable once
+  // So group until a variable that has already been set needs to be touched
+  next_inst();
 
   switch (inst->op) {
     case MOV:
-      printf("%s" ACTION_SETTO "%s", desmos_reg_names[inst->dst.reg], desmos_value_str(&inst->src));
+      printf(des_parens("%s" ACTION_SETTO "%s" inc_ip()), desmos_reg_names[inst->dst.reg], desmos_value_str(&inst->src));
       break;
 
     case JMP:
-      did_change_pc = true;
       printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str_minus1(&inst->jmp));
       break;
 
     case EXIT:
       put(VAR_RUNNING ACTION_SETTO "0");
       break;
-
+    
     case PUTC:
-      printf(VAR_STDOUT ACTION_SETTO "%s", desmos_value_str(&inst->src));
+      printf(des_parens(VAR_STDOUT ACTION_SETTO "%s" inc_ip()), desmos_value_str(&inst->src));
       break;
 
     default:
@@ -360,7 +287,7 @@ void emit_update_function(int num_funcs) {
       VAR_RUNNING "=1", 
       des_call(
         FUNC_CALLF, 
-        des_call(des_builtin("floor"), BSLASH "frac{" REG_PC "}{%d}")
+        des_call(des_builtin("floor"), BSLASH "frac{" VAR_PC "}{%d}")
       )
     ), 
     CHUNKED_FUNC_SIZE
