@@ -141,6 +141,8 @@ void emit_ticker_handler() {
 void init_state(Data* data) {
   begin_folder("IO");
   emit_expression(VAR_STDIN "=" des_array(""));
+  // desmos arrays used 1 based indexing
+  emit_expression(VAR_STDIN_IND "=1");
   emit_expression(VAR_STDOUT "=0");
 
   // Begin registers folder
@@ -270,6 +272,12 @@ void emit_inst(Inst* inst) {
 
     case PUTC:
       printf(inc_ip(VAR_STDOUT ACTION_SETTO "%s"), desmos_value_str(&inst->src));
+      break;
+    
+    case GETC:
+      printf(inc_ip("%s" ACTION_SETTO VAR_STDIN DESMOS_LBRAC VAR_STDIN_IND DESMOS_RBRAC), desmos_reg_names[inst->dst.reg]);
+      next_inst();
+      put(inc_ip(VAR_STDIN_IND ACTION_SETTO VAR_STDIN_IND "+1"));
       break;
 
     default:
