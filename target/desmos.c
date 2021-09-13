@@ -57,6 +57,8 @@
 #define des_array(contents) DESMOS_LBRAC contents DESMOS_RBRAC
 #define inc_ip(ins) LPAREN ins "," ACTION_INC_IP RPAREN
 #define des_parens(contents) LPAREN contents RPAREN
+// in most cases it is most useful to set the sequence and n to the same value
+#define des_sum(arr) BSLASH "sum_{n=" arr "}^{" arr "}"
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -76,10 +78,14 @@
 #define FUNC_CHANGEPC_PARAM0 "p"
 #define FUNC_UPDATE "u"
 #define FUNC_CALLF "c_{allf}"
+#define FUNC_APPEND "p_{ush}"
+#define FUNC_APPEND_PARAM0 "l"
+#define FUNC_APPEND_PARAM1 "i"
+#define FUNC_POP "p_{op}"
 #define FUNC_CALLF_PARAM0 "i"
 #define VAR_MEMCELL_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
-#define ACTION_INC_IP "n"
+#define ACTION_INC_IP "m"
 // registers
 #define VAR_PC "p_{c}"
 // the instruction number (relative to the program counter)
@@ -146,7 +152,7 @@ void init_state(Data* data) {
   emit_expression(VAR_STDIN "=" des_array(""));
   // desmos arrays used 1 based indexing
   emit_expression(VAR_STDIN_IND "=1");
-  emit_expression(VAR_STDOUT "=0");
+  emit_expression(VAR_STDOUT "=" des_array(""));
 
   // Begin registers folder
   begin_folder("Registers");
@@ -175,6 +181,31 @@ void init_state(Data* data) {
   }
   begin_folder("Code");
   emit_expression(ACTION_INC_IP "=" VAR_IP ACTION_SETTO VAR_IP "+1");
+}
+
+void emit_append_function(void) {
+  // append(arr, item) = 
+  //  map over range(1, len(arr) + 1)
+  //   (in desmos the current element is stored in the variable n)
+  //  If n <= length(arr), result with arr[n]
+  //  Otherwise, we are in the +1 element, so return item
+  // This results in the new list arr + [item]
+
+  // To view lists in desmos, you must make a "table" from the + menu in the top left,
+  //  then put the expression that produces the list in any column after the first
+  //  (the first column is special). The list will be displayed in the table.
+
+  emit_expression(
+    FUNC_APPEND des_parens(FUNC_APPEND_PARAM0 "," FUNC_APPEND_PARAM1) "="
+    // des_sum(arr) is basically map(arr, n => <rest of expression>)
+    des_sum(des_array("1,...," des_call(des_builtin("length"), FUNC_APPEND_PARAM0) "+1"))
+    des_ifelse(
+      // n is the builtin element variable in sums
+      "n" BSLASH "le" des_call(des_builtin("length"), FUNC_APPEND_PARAM0),
+      FUNC_APPEND_PARAM0 des_array("n"),
+      FUNC_APPEND_PARAM1
+    )
+  );
 }
 
 void emit_check_function(void) {
@@ -274,9 +305,12 @@ void emit_inst(Inst* inst) {
       break;
 
     case PUTC:
-      printf(inc_ip(VAR_STDOUT ACTION_SETTO "%s"), desmos_value_str(&inst->src));
+      printf(
+        inc_ip(VAR_STDOUT ACTION_SETTO des_call(FUNC_APPEND, VAR_STDOUT ",%s")), 
+        desmos_value_str(&inst->src)
+      );
       break;
-    
+
     case GETC:
       printf(inc_ip("%s" ACTION_SETTO VAR_STDIN DESMOS_LBRAC VAR_STDIN_IND DESMOS_RBRAC), desmos_reg_names[inst->dst.reg]);
       next_inst();
@@ -346,6 +380,7 @@ void target_desmos(Module *module) {
     emit_pc_change,
     emit_inst
   );
+  emit_append_function();
   emit_check_function();
   emit_changepc_function();
   emit_update_function(num_funcs);
