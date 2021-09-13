@@ -291,16 +291,6 @@ char* desmos_value_str(Value *v) {
   }
 }
 
-char* desmos_value_str_minus1(Value *v) {
-  if (v->type == IMM) {
-    return format("%d", v->imm - 1);
-  } else if (v->type == REG) {
-    return format("%s-1", desmos_reg_names[v->reg]);
-  } else {
-    error("Invalid value type %d", v->type);
-  }
-}
-
 void emit_inst(Inst* inst) {
   // TODO: Group instructions as much as possible
   // For each case, you can set each variable once
@@ -313,7 +303,7 @@ void emit_inst(Inst* inst) {
       break;
 
     case JMP:
-      printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str_minus1(&inst->jmp));
+      printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str(&inst->jmp));
       break;
 
     case EXIT:
