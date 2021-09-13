@@ -55,7 +55,7 @@
 #define des_call(func, args) func LPAREN args RPAREN
 #define des_builtin(func) BSLASH "operatorname{" func "}"
 #define des_array(contents) DESMOS_LBRAC contents DESMOS_RBRAC
-#define inc_ip() "," ACTION_INC_IP
+#define inc_ip(ins) LPAREN ins "," ACTION_INC_IP RPAREN
 #define des_parens(contents) LPAREN contents RPAREN
 
 // define a ticker update step (must pass raw string literals)
@@ -257,7 +257,7 @@ void emit_inst(Inst* inst) {
 
   switch (inst->op) {
     case MOV:
-      printf(des_parens("%s" ACTION_SETTO "%s" inc_ip()), desmos_reg_names[inst->dst.reg], desmos_value_str(&inst->src));
+      printf(inc_ip("%s" ACTION_SETTO "%s"), desmos_reg_names[inst->dst.reg], desmos_value_str(&inst->src));
       break;
 
     case JMP:
@@ -267,9 +267,9 @@ void emit_inst(Inst* inst) {
     case EXIT:
       put(VAR_RUNNING ACTION_SETTO "0");
       break;
-    
+
     case PUTC:
-      printf(des_parens(VAR_STDOUT ACTION_SETTO "%s" inc_ip()), desmos_value_str(&inst->src));
+      printf(inc_ip(VAR_STDOUT ACTION_SETTO "%s"), desmos_value_str(&inst->src));
       break;
 
     default:
