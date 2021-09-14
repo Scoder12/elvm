@@ -77,12 +77,17 @@
 #define FUNC_CHANGEPC_PARAM0 "p"
 #define FUNC_UPDATE "u"
 #define FUNC_CALLF "c_{allf}"
+#define FUNC_CALLF_PARAM0 "i"
 #define FUNC_APPEND "p_{ush}"
 #define FUNC_APPEND_PARAM0 "l"
 #define FUNC_APPEND_PARAM1 "i"
 #define FUNC_POP "p_{op}"
 #define FUNC_POP_PARAM0 "l"
-#define FUNC_CALLF_PARAM0 "i"
+#define FUNC_LOAD "g"
+#define FUNC_LOAD_PARAM0 "l"
+#define FUNC_STORE "s"
+#define FUNC_STORE_PARAM0 "l"
+#define FUNC_STORE_PARAM1 "i"
 #define VAR_MEMCELL_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
 #define ACTION_INC_IP "m"
@@ -224,6 +229,28 @@ void emit_pop_function(void) {
   );
 }
 
+void emit_load_function(void) {
+  begin_expression();
+  put(des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "=" DESMOS_LBRAC);
+  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
+    if (mp > 0) putchar(',');
+    printf(VAR_MEMCELL_FMT, mp);
+  }
+  put(DESMOS_RBRAC des_array(FUNC_LOAD_PARAM0));
+  end_expression();
+}
+
+void emit_store_function(void) {
+  begin_expression();
+  put(des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "=" DESMOS_IF);
+  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
+    if (mp > 0) put(DESMOS_ELSE);
+    printf(FUNC_STORE_PARAM0 "=%d" DESMOS_THEN VAR_MEMCELL_FMT, mp, mp);
+  }
+  put(DESMOS_ENDIF);
+  end_expression();
+}
+
 void emit_check_function(void) {
   // Returns 1 if pc and ip matches the given paramaters.
   emit_expression(
@@ -304,6 +331,22 @@ void emit_inst(Inst* inst) {
 
     case JMP:
       printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str(&inst->jmp));
+      break;
+
+    case LOAD:
+      printf(
+        inc_ip("%s" ACTION_SETTO des_call(FUNC_LOAD, "%s")), 
+        desmos_reg_names[inst->dst.reg],
+        desmos_value_str(&inst->src)
+      );
+      break;
+
+    case STORE:
+      printf(
+        inc_ip(des_call(FUNC_STORE, "%s,%s")),
+        desmos_value_str(&inst->src),
+        desmos_reg_names[inst->dst.reg]
+      );
       break;
 
     case EXIT:
@@ -392,6 +435,8 @@ void target_desmos(Module *module) {
   );
   emit_append_function();
   emit_pop_function();
+  emit_load_function();
+  emit_store_function();
   emit_check_function();
   emit_changepc_function();
   emit_update_function(num_funcs);
