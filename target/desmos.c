@@ -92,6 +92,8 @@
 #define FUNC_STORE "s"
 #define FUNC_STORE_PARAM0 "l"
 #define FUNC_STORE_PARAM1 "i"
+#define FUNC_STORE_SUBFUNC "s_{c}"
+#define FUNC_STORE_SUBFUNC_PARAM0 "h"
 #define FUNC_STORE_CHUNK_FMT "s_{%d}"
 #define VAR_MEMCELL_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
@@ -197,23 +199,38 @@ void emit_store_function(void) {
   }
   
   begin_expression();
-  put(des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "=" DESMOS_IF);
+  put(
+    des_call(
+      FUNC_STORE_SUBFUNC, 
+      FUNC_STORE_SUBFUNC_PARAM0 "," FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1
+    ) "=" DESMOS_IF
+  );
   for (
     int chunk = 0; chunk * DESMOS_MAX_STORE_FUNC_SIZE < DESMOS_MEM_SIZE; chunk++
   ) {
     if (chunk > 0) put(DESMOS_ELSE);
     printf(
-      des_call(
-        des_builtin("floor"), 
-        BSLASH "frac{" FUNC_STORE_PARAM0 "}{%d}"
-      ) "=%d" DESMOS_THEN 
+      FUNC_STORE_SUBFUNC_PARAM0 "=%d" DESMOS_THEN 
       des_call(FUNC_STORE_CHUNK_FMT, FUNC_APPEND_PARAM0 "," FUNC_APPEND_PARAM1), 
-      DESMOS_MAX_STORE_FUNC_SIZE,
       chunk,
       chunk
     );
   }
   put(DESMOS_ENDIF);
+  end_expression();
+
+  begin_expression();
+  printf(
+    des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "="
+    des_call(
+      FUNC_STORE_SUBFUNC, 
+      des_call(
+        des_builtin("floor"), 
+        BSLASH "frac{" FUNC_STORE_PARAM0 "}{%d}"
+      ) "," FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1
+    ),
+    DESMOS_MAX_STORE_FUNC_SIZE
+  );
   end_expression();
 }
 
