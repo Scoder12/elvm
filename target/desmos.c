@@ -249,7 +249,11 @@ void emit_store_function(void) {
   put(des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "=" DESMOS_IF);
   for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
     if (mp > 0) put(DESMOS_ELSE);
-    printf(FUNC_STORE_PARAM0 "=%d" DESMOS_THEN VAR_MEMCELL_FMT, mp, mp);
+    printf(
+      FUNC_STORE_PARAM0 "=%d" DESMOS_THEN VAR_MEMCELL_FMT ACTION_SETTO FUNC_APPEND_PARAM1, 
+      mp, 
+      mp
+    );
   }
   put(DESMOS_ENDIF);
   end_expression();
