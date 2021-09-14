@@ -21,7 +21,7 @@
 
 // OPTIONS
 // for testing purposes
-#define DESMOS_MEM_SIZE 301
+#define DESMOS_MEM_SIZE 600
 // END OPTIONS
 
 
@@ -156,6 +156,32 @@ void emit_ticker_handler() {
   put(des_call(FUNC_UPDATE, ""));
 }
 
+void emit_load_function(void) {
+  begin_expression();
+  put(des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "=" DESMOS_LBRAC);
+  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
+    if (mp > 0) putchar(',');
+    printf(VAR_MEMCELL_FMT, mp);
+  }
+  put(DESMOS_RBRAC des_array(FUNC_LOAD_PARAM0));
+  end_expression();
+}
+
+void emit_store_function(void) {
+  begin_expression();
+  put(des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "=" DESMOS_IF);
+  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
+    if (mp > 0) put(DESMOS_ELSE);
+    printf(
+      FUNC_STORE_PARAM0 "=%d" DESMOS_THEN VAR_MEMCELL_FMT ACTION_SETTO FUNC_APPEND_PARAM1, 
+      mp, 
+      mp
+    );
+  }
+  put(DESMOS_ENDIF);
+  end_expression();
+}
+
 void init_state(Data* data) {
   begin_folder("IO");
   emit_expression(VAR_STDIN "=" des_array(""));
@@ -186,6 +212,11 @@ void init_state(Data* data) {
     printf(VAR_MEMCELL_FMT "=0", mp);
     end_expression();
   }
+
+  begin_folder("Memory functions");
+  emit_load_function();
+  emit_store_function();
+
   begin_folder("Code");
   emit_expression(ACTION_INC_IP "=" VAR_IP ACTION_SETTO VAR_IP "+1");
 }
@@ -231,32 +262,6 @@ void emit_pop_function(void) {
       ) FUNC_POP_PARAM0 des_array("n")
     )
   );
-}
-
-void emit_load_function(void) {
-  begin_expression();
-  put(des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "=" DESMOS_LBRAC);
-  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
-    if (mp > 0) putchar(',');
-    printf(VAR_MEMCELL_FMT, mp);
-  }
-  put(DESMOS_RBRAC des_array(FUNC_LOAD_PARAM0));
-  end_expression();
-}
-
-void emit_store_function(void) {
-  begin_expression();
-  put(des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "=" DESMOS_IF);
-  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
-    if (mp > 0) put(DESMOS_ELSE);
-    printf(
-      FUNC_STORE_PARAM0 "=%d" DESMOS_THEN VAR_MEMCELL_FMT ACTION_SETTO FUNC_APPEND_PARAM1, 
-      mp, 
-      mp
-    );
-  }
-  put(DESMOS_ENDIF);
-  end_expression();
 }
 
 void emit_check_function(void) {
@@ -452,8 +457,6 @@ void target_desmos(Module *module) {
   );
   emit_append_function();
   emit_pop_function();
-  emit_load_function();
-  emit_store_function();
   emit_check_function();
   emit_changepc_function();
   emit_update_function(num_funcs);
