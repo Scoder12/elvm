@@ -451,7 +451,7 @@ void emit_inst(Inst* inst) {
 
 void emit_update_function(int num_funcs) {
   // update function
-  fprintf(stderr, "Generated %d funcs", num_funcs);
+  fprintf(stderr, "Generated %d funcs\n", num_funcs);
   begin_expression();
   printf(
     des_call(FUNC_UPDATE, "") "=" 
@@ -519,7 +519,4 @@ void target_desmos(Module *module) {
 
   // End graph
   put("}");
-
-  // DUMMY LINE TO AVOID "unused variable" warning
-  fprintf(stderr, "%d\n", module->data->v);
 }
