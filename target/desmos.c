@@ -166,7 +166,7 @@ void emit_load_function(void) {
     if (mp > 0) putchar(',');
     printf(VAR_MEMCELL_FMT, mp);
   }
-  put(DESMOS_RBRAC des_array(FUNC_LOAD_PARAM0));
+  put(DESMOS_RBRAC des_array(FUNC_LOAD_PARAM0 "+1"));
   end_expression();
 }
 
