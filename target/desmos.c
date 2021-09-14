@@ -21,7 +21,7 @@
 
 // OPTIONS
 // for testing purposes
-#define DESMOS_MEM_SIZE 32
+#define DESMOS_MEM_SIZE 301
 // END OPTIONS
 
 
