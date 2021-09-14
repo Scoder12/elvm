@@ -45,6 +45,10 @@
 #define ACTION_SETTO BSLASH "to "
 #define DESMOS_LBRAC BSLASH "left["
 #define DESMOS_RBRAC BSLASH "right]"
+// Like scratch, desmos has mod but not binary and, so I copied this number from the
+//  scratch3 target's ADD and SUB instructions. It's UINT_MAX + 1. No idea why/how
+//  that works but I will use it.
+#define DESMOS_UINT_MAX_STR "16777216"
 
 // If format: { cond: truepart, falsepart }
 // You can have multiple conds too:
@@ -327,6 +331,15 @@ void emit_inst(Inst* inst) {
   switch (inst->op) {
     case MOV:
       printf(inc_ip("%s" ACTION_SETTO "%s"), desmos_reg_names[inst->dst.reg], desmos_value_str(&inst->src));
+      break;
+
+    case ADD:
+      printf(
+        inc_ip("%s" ACTION_SETTO des_call(des_builtin("mod"), "%s+%s," DESMOS_UINT_MAX_STR)),
+        desmos_reg_names[inst->dst.reg],
+        desmos_reg_names[inst->dst.reg],
+        desmos_value_str(&inst->src)
+      );
       break;
 
     case JMP:
