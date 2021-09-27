@@ -338,14 +338,12 @@ void emit_changepc_function(void) {
 static int is_first_inst = 1;
 
 void emit_func_prologue(int func_id) {
-  fprintf(stderr, "begin func %d\n", func_id);
   is_first_inst = 1;
   begin_expression();
   printf(des_call(FUNC_ASMFUNC_FMT, "") "=" DESMOS_IF, func_id);
 }
 
 void emit_func_epilogue(void) {
-  fprintf(stderr, "end func\n");
   put(DESMOS_ENDIF);
   end_expression();
 }
@@ -363,7 +361,6 @@ void next_inst(void) {
 }
 
 void emit_pc_change(int pc) {
-  fprintf(stderr, "  pc change to %d\n", pc);
   if (curr_pc != -1) {
     next_inst();
     printf(des_call(FUNC_CHANGEPC, "%d"), curr_pc + 1);
@@ -451,7 +448,6 @@ void emit_inst(Inst* inst) {
 
 void emit_update_function(int num_funcs) {
   // update function
-  fprintf(stderr, "Generated %d funcs\n", num_funcs);
   begin_expression();
   printf(
     des_call(FUNC_UPDATE, "") "=" 
