@@ -413,11 +413,19 @@ void emit_inst(Inst* inst) {
       break;
 
     case STORE:
-      printf(
-        inc_ip(des_call(FUNC_STORE, "%s,%s")),
-        desmos_value_str(&inst->src),
-        desmos_reg_names[inst->dst.reg]
-      );
+      if (inst->src.type == IMM) {
+        printf(
+          VAR_MEMCELL_FMT ACTION_SETTO "%s", 
+          inst->src.imm, 
+          desmos_reg_names[inst->dst.reg]
+        );
+      } else {
+        printf(
+          inc_ip(des_call(FUNC_STORE, "%s,%s")),
+          desmos_value_str(&inst->src),
+          desmos_reg_names[inst->dst.reg]
+        );
+      }
       break;
 
     case EXIT:
