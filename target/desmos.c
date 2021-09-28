@@ -21,7 +21,7 @@
 
 // OPTIONS
 // for testing purposes
-#define DESMOS_MEM_SIZE 600
+#define DESMOS_MEM_SIZE 10000
 // END OPTIONS
 
 
@@ -93,11 +93,9 @@
 #define FUNC_STORE_PARAM0 "l"
 #define FUNC_STORE_PARAM1 "i"
 #define FUNC_STORE_SUBFUNC "s_{c}"
-#define FUNC_STORE_SUBFUNC_PARAM0 "h"
-#define FUNC_STORE_CHUNK_FMT "s_{%d}"
-#define VAR_MEMCELL_FMT "m_{%d}"
+#define VAR_MEMARR "m"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
-#define ACTION_INC_IP "m"
+#define ACTION_INC_IP "h"
 // registers
 #define VAR_PC "p_{c}"
 // the instruction number (relative to the program counter)
@@ -161,77 +159,25 @@ void emit_ticker_handler() {
 
 void emit_load_function(void) {
   begin_expression();
-  put(des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "=" DESMOS_LBRAC);
-  for (int mp = 0; mp < DESMOS_MEM_SIZE; mp++) {
-    if (mp > 0) putchar(',');
-    printf(VAR_MEMCELL_FMT, mp);
-  }
-  put(DESMOS_RBRAC des_array(FUNC_LOAD_PARAM0 "+1"));
+  put(des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "=" VAR_MEMARR des_array(FUNC_LOAD_PARAM0 "+1"));
   end_expression();
 }
 
 void emit_store_function(void) {
-  #define DESMOS_MAX_STORE_FUNC_SIZE 100
-
-  int start;
-  int mp;
-  for (
-    int chunk = 0; (start = chunk * DESMOS_MAX_STORE_FUNC_SIZE) < DESMOS_MEM_SIZE; chunk++
-  ) {
-    begin_expression();
-    printf(
-      des_call(FUNC_STORE_CHUNK_FMT, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "="
-      DESMOS_IF,
-      chunk
-    );
-    for (
-      int i = 0; i < DESMOS_MAX_STORE_FUNC_SIZE && (mp = start + i) < DESMOS_MEM_SIZE; i++
-    ) {
-      if (i > 0) put(DESMOS_ELSE);
-      printf(
-        FUNC_STORE_PARAM0 "=%d" DESMOS_THEN VAR_MEMCELL_FMT ACTION_SETTO FUNC_APPEND_PARAM1, 
-        mp, 
-        mp
-      );
-    }
-    put(DESMOS_ENDIF);
-    end_expression();
-  }
-  
-  begin_expression();
-  put(
-    des_call(
-      FUNC_STORE_SUBFUNC, 
-      FUNC_STORE_SUBFUNC_PARAM0 "," FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1
-    ) "=" DESMOS_IF
+  emit_expression(
+    des_call(FUNC_STORE_SUBFUNC, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "="
+    VAR_MEMARR ACTION_SETTO
+    des_ifelse(
+      des_array("1,...," des_call(des_builtin("length"), VAR_MEMARR)) "=" FUNC_STORE_PARAM0,
+      FUNC_STORE_PARAM1,
+      VAR_MEMARR
+    )
   );
-  for (
-    int chunk = 0; chunk * DESMOS_MAX_STORE_FUNC_SIZE < DESMOS_MEM_SIZE; chunk++
-  ) {
-    if (chunk > 0) put(DESMOS_ELSE);
-    printf(
-      FUNC_STORE_SUBFUNC_PARAM0 "=%d" DESMOS_THEN 
-      des_call(FUNC_STORE_CHUNK_FMT, FUNC_APPEND_PARAM0 "," FUNC_APPEND_PARAM1), 
-      chunk,
-      chunk
-    );
-  }
-  put(DESMOS_ENDIF);
-  end_expression();
 
-  begin_expression();
-  printf(
+  emit_expression(
     des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "="
-    des_call(
-      FUNC_STORE_SUBFUNC, 
-      des_call(
-        des_builtin("floor"), 
-        BSLASH "frac{" FUNC_STORE_PARAM0 "}{%d}"
-      ) "," FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1
-    ),
-    DESMOS_MAX_STORE_FUNC_SIZE
+    des_call(FUNC_STORE_SUBFUNC, FUNC_STORE_PARAM0 "+1," FUNC_STORE_PARAM1)
   );
-  end_expression();
 }
 
 void init_state(Data* data) {
@@ -253,17 +199,19 @@ void init_state(Data* data) {
 
   begin_folder("Memory");
   // Setup memory
+  begin_expression();
+  put(VAR_MEMARR "=" DESMOS_LBRAC);
   int mp = 0;
   for (; data; data = data->next, mp++) {
-    begin_expression();
-    printf(VAR_MEMCELL_FMT "=%d", mp, data->v);
-    end_expression();
+    if (mp != 0) put(",");
+    printf("%d", data->v);
   }
   for (; mp < DESMOS_MEM_SIZE; mp++) {
-    begin_expression();
-    printf(VAR_MEMCELL_FMT "=0", mp);
-    end_expression();
+    if (mp != 0) put(",");
+    put("0");
   }
+  put(DESMOS_RBRAC);
+  end_expression();
 
   begin_folder("Memory functions");
   emit_load_function();
@@ -413,19 +361,11 @@ void emit_inst(Inst* inst) {
       break;
 
     case STORE:
-      if (inst->src.type == IMM) {
-        printf(
-          VAR_MEMCELL_FMT ACTION_SETTO "%s", 
-          inst->src.imm, 
-          desmos_reg_names[inst->dst.reg]
-        );
-      } else {
-        printf(
-          inc_ip(des_call(FUNC_STORE, "%s,%s")),
-          desmos_value_str(&inst->src),
-          desmos_reg_names[inst->dst.reg]
-        );
-      }
+      printf(
+        inc_ip(des_call(FUNC_STORE, "%s,%s")),
+        desmos_value_str(&inst->src),
+        desmos_reg_names[inst->dst.reg]
+      );
       break;
 
     case EXIT:
