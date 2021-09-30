@@ -473,6 +473,7 @@ void target_desmos(Module *module) {
   );
   emit_append_function();
   emit_pop_function();
+  emit_mod_function();
   emit_check_function();
   emit_changepc_function();
   emit_update_function(num_funcs);
