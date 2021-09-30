@@ -77,17 +77,18 @@
 #define FUNC_CHECK "k" // preferably short since it is used a lot
 #define FUNC_CHECK_PARAM0 "p"
 #define FUNC_CHECK_PARAM1 "i"
-#define FUNC_CHANGEPC "c_{pc}"
+#define FUNC_CHANGEPC "j"
 #define FUNC_CHANGEPC_PARAM0 "p"
 #define FUNC_UPDATE "u"
 #define FUNC_CALLF "c_{allf}"
 #define FUNC_CALLF_PARAM0 "i"
-#define FUNC_APPEND "p_{ush}"
+#define FUNC_APPEND "q"
 #define FUNC_APPEND_PARAM0 "l"
 #define FUNC_APPEND_PARAM1 "i"
-#define FUNC_POP "p_{op}"
+#define FUNC_POP "w"
 #define FUNC_POP_PARAM0 "l"
 #define FUNC_MOD "o"
+#define FUNC_GETC "t"
 #define FUNC_MOD_PARAM0 "i"
 #define FUNC_LOAD "g"
 #define FUNC_LOAD_PARAM0 "l"
@@ -270,6 +271,17 @@ void emit_mod_function(void) {
   emit_expression(
     des_call(FUNC_MOD, FUNC_MOD_PARAM0) "="
     des_call(des_builtin("mod"), FUNC_MOD_PARAM0 "," DESMOS_UINT_MAX_STR)
+  );
+}
+
+void emit_getc_function(void) {
+  emit_expression(
+    des_call(FUNC_GETC, "") "="
+    des_ifelse(
+      des_call(des_builtin("length"), VAR_STDIN) "<1",
+      "0",
+      VAR_STDIN des_array("1")
+    )
   );
 }
 
@@ -471,7 +483,7 @@ void emit_inst(Inst* inst) {
     case GETC:
       printf(
         inc_ip(
-          "%s" ACTION_SETTO VAR_STDIN des_array("1") ","
+          "%s" ACTION_SETTO des_call(FUNC_GETC, "") ","
           VAR_STDIN ACTION_SETTO des_call(FUNC_POP, VAR_STDIN)
         ), 
         desmos_reg_names[inst->dst.reg]
@@ -543,6 +555,7 @@ void target_desmos(Module *module) {
   emit_append_function();
   emit_pop_function();
   emit_mod_function();
+  emit_getc_function();
   emit_check_function();
   emit_changepc_function();
   emit_update_function(num_funcs);
