@@ -337,6 +337,43 @@ char* desmos_value_str(Value *v) {
   }
 }
 
+char* desmos_cmp_str(Inst* inst, const char* true_str, const char* false_str) {
+  int op = normalize_cond(inst->op, 0);
+  char* op_str;
+  switch (op) {
+    case JEQ:
+      op_str = "=";
+      break;
+    case JNE:
+      // ne is a special case: we use eq but swap outputs.
+      return format(
+        des_ifelse("%s=%s", "%s", "%s"), 
+        desmos_reg_names[inst->dst.reg], 
+        desmos_value_str(&inst->src),
+        false_str,
+        true_str
+      );
+    case JLT:
+      op_str = BSLASH "lt "; break;
+    case JGT:
+      op_str = BSLASH "gt "; break;
+    case JLE:
+      op_str = BSLASH "le "; break;
+    case JGE:
+      op_str = BSLASH "ge "; break;
+    default:
+      error("oops");
+  }
+  return format(
+    des_ifelse("%s%s%s", "%s", "%s"), 
+    desmos_reg_names[inst->dst.reg], 
+    op_str, 
+    desmos_value_str(&inst->src),
+    true_str,
+    false_str
+  );
+}
+
 void emit_inst(Inst* inst) {
   if (inst->op == DUMP) {
     // don't trigger next_inst();
@@ -385,6 +422,38 @@ void emit_inst(Inst* inst) {
         inc_ip(des_call(FUNC_STORE, "%s,%s")),
         desmos_value_str(&inst->src),
         desmos_reg_names[inst->dst.reg]
+      );
+      break;
+
+    case EQ:
+    case NE:
+    case LT:
+    case GT:
+    case LE:
+    case GE:
+      printf(
+        inc_ip("%s" ACTION_SETTO "%s"), 
+        desmos_reg_names[inst->dst.reg],
+        desmos_cmp_str(inst, "1", "0")
+      );
+      break;
+
+    case JEQ:
+    case JNE:
+    case JLT:
+    case JGT:
+    case JLE:
+    case JGE:
+      printf(
+        "%s",
+        desmos_cmp_str(
+          inst,
+          format(
+            des_call(FUNC_CHANGEPC, "%s"), 
+            desmos_value_str(&inst->jmp)
+          ),
+          ACTION_INC_IP
+        )
       );
       break;
 
