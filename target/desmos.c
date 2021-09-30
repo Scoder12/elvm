@@ -338,9 +338,6 @@ char* desmos_value_str(Value *v) {
 }
 
 void emit_inst(Inst* inst) {
-  // TODO: Group instructions as much as possible
-  // For each case, you can set each variable once
-  // So group until a variable that has already been set needs to be touched
   next_inst();
 
   switch (inst->op) {
