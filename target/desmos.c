@@ -298,7 +298,11 @@ void emit_changepc_function(void) {
     des_call(FUNC_CHANGEPC, FUNC_CHANGEPC_PARAM0) "="
     des_ifelse(
       VAR_PC "=" FUNC_CHANGEPC_PARAM0,
-      ACTION_INC_IP,
+      des_ifelse(
+        VAR_IP "=0",
+        ACTION_INC_IP,
+        LPAREN VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0" RPAREN
+      ),
       LPAREN VAR_PC ACTION_SETTO FUNC_CHANGEPC_PARAM0 "," VAR_IP ACTION_SETTO "0" RPAREN
     )
   );
