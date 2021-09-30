@@ -359,6 +359,15 @@ void emit_inst(Inst* inst) {
       );
       break;
 
+    case SUB:
+      printf(
+        inc_ip("%s" ACTION_SETTO des_call(FUNC_MOD, "%s-%s")),
+        desmos_reg_names[inst->dst.reg],
+        desmos_reg_names[inst->dst.reg],
+        desmos_value_str(&inst->src)
+      );
+      break;
+
     case JMP:
       printf(des_call(FUNC_CHANGEPC, "%s"), desmos_value_str(&inst->jmp));
       break;
