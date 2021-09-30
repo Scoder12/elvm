@@ -87,6 +87,8 @@
 #define FUNC_APPEND_PARAM1 "i"
 #define FUNC_POP "p_{op}"
 #define FUNC_POP_PARAM0 "l"
+#define FUNC_MOD "d"
+#define FUNC_MOD_PARAM0 "i"
 #define FUNC_LOAD "g"
 #define FUNC_LOAD_PARAM0 "l"
 #define FUNC_STORE "s"
@@ -264,6 +266,13 @@ void emit_pop_function(void) {
   );
 }
 
+void emit_mod_function(void) {
+  emit_expression(
+    des_call(FUNC_MOD, FUNC_MOD_PARAM0) "="
+    des_call(des_builtin("mod"), FUNC_MOD_PARAM0 "," DESMOS_UINT_MAX_STR)
+  );
+}
+
 void emit_check_function(void) {
   // Returns 1 if pc and ip matches the given paramaters.
   emit_expression(
@@ -341,7 +350,7 @@ void emit_inst(Inst* inst) {
 
     case ADD:
       printf(
-        inc_ip("%s" ACTION_SETTO des_call(des_builtin("mod"), "%s+%s," DESMOS_UINT_MAX_STR)),
+        inc_ip("%s" ACTION_SETTO des_call(FUNC_MOD, "%s+%s")),
         desmos_reg_names[inst->dst.reg],
         desmos_reg_names[inst->dst.reg],
         desmos_value_str(&inst->src)
