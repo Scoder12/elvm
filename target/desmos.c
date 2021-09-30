@@ -87,7 +87,7 @@
 #define FUNC_APPEND_PARAM1 "i"
 #define FUNC_POP "p_{op}"
 #define FUNC_POP_PARAM0 "l"
-#define FUNC_MOD "d"
+#define FUNC_MOD "o"
 #define FUNC_MOD_PARAM0 "i"
 #define FUNC_LOAD "g"
 #define FUNC_LOAD_PARAM0 "l"
