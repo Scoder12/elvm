@@ -338,6 +338,11 @@ char* desmos_value_str(Value *v) {
 }
 
 void emit_inst(Inst* inst) {
+  if (inst->op == DUMP) {
+    // don't trigger next_inst();
+    return;
+  }
+
   next_inst();
 
   switch (inst->op) {
