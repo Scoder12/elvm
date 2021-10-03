@@ -21,7 +21,9 @@
 
 // OPTIONS
 // for testing purposes
-#define DESMOS_MEM_SIZE 10000
+#define DESMOS_MEM_SIZE 100
+// maximum chunk size is 10,000 (max array length)
+#define DESMOS_MEM_CHUNK_SIZE 10
 // END OPTIONS
 
 
@@ -63,6 +65,7 @@
 #define des_parens(contents) LPAREN contents RPAREN
 // in most cases it is most useful to set the sequence and n to the same value
 #define des_sum(arr) BSLASH "sum_{n=" arr "}^{" arr "}"
+#define des_frac(num, denom) BSLASH "frac{" num "}{" denom "}"
 
 // define a ticker update step (must pass raw string literals)
 #define ticker_update(var,val) put(var BSLASH "to " val)
@@ -92,11 +95,16 @@
 #define FUNC_MOD_PARAM0 "i"
 #define FUNC_LOAD "g"
 #define FUNC_LOAD_PARAM0 "l"
+#define FUNC_LOAD_PARAM1 "i"
+#define FUNC_LOAD_PARAM2 "p"
+#define FUNC_LOAD_SUBFUNC "g_{1}"
 #define FUNC_STORE "s"
 #define FUNC_STORE_PARAM0 "l"
 #define FUNC_STORE_PARAM1 "i"
+#define FUNC_STORE_PARAM2 "m_{n}"
+#define FUNC_STORE_PARAM3 "p"
 #define FUNC_STORE_SUBFUNC "s_{c}"
-#define VAR_MEMARR "m"
+#define VAR_MEMARR_FMT "m_{%d}"
 #define FUNC_ASMFUNC_FMT "f_{%d}"
 #define ACTION_INC_IP "h"
 // registers
@@ -162,25 +170,68 @@ void emit_ticker_handler() {
 
 void emit_load_function(void) {
   begin_expression();
-  put(des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "=" VAR_MEMARR des_array(FUNC_LOAD_PARAM0 "+1"));
+  printf(
+    des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "="
+    des_call(
+      FUNC_LOAD_SUBFUNC, 
+      FUNC_LOAD_PARAM0 "+1," 
+      des_call(des_builtin("floor"), des_frac(FUNC_LOAD_PARAM0, "%d")) ","
+      des_call(des_builtin("mod"), FUNC_LOAD_PARAM0 ",%d") "+1"
+    ),
+    DESMOS_MEM_CHUNK_SIZE,
+    DESMOS_MEM_CHUNK_SIZE
+  );
+  end_expression();
+  begin_expression();
+  put(
+    des_call(
+      FUNC_LOAD_SUBFUNC, 
+      FUNC_LOAD_PARAM0 "," FUNC_LOAD_PARAM1 "," FUNC_LOAD_PARAM2
+    ) "=" DESMOS_IF
+  );
+  for (int chunk = 0; chunk * DESMOS_MEM_CHUNK_SIZE < DESMOS_MEM_SIZE; chunk++) {
+    if (chunk != 0) put(DESMOS_ELSE);
+    printf(
+      FUNC_LOAD_PARAM1 "=%d" DESMOS_THEN VAR_MEMARR_FMT des_array(FUNC_LOAD_PARAM2), 
+      chunk,
+      chunk
+    );
+  }
+  put(DESMOS_ENDIF);
   end_expression();
 }
 
 void emit_store_function(void) {
-  emit_expression(
-    des_call(FUNC_STORE_SUBFUNC, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "="
-    VAR_MEMARR ACTION_SETTO
+  begin_expression();
+  printf(
+    des_call(FUNC_STORE_SUBFUNC, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1 "," FUNC_STORE_PARAM2 "," FUNC_STORE_PARAM3) "="
     des_ifelse(
-      des_array("1,...," des_call(des_builtin("length"), VAR_MEMARR)) "=" FUNC_STORE_PARAM0,
+      des_array("1,...," des_call(des_builtin("length"), FUNC_STORE_PARAM3)) "="
+        FUNC_STORE_PARAM0 "+1-%d" BSLASH "cdot " FUNC_STORE_PARAM2,
       FUNC_STORE_PARAM1,
-      VAR_MEMARR
-    )
+      FUNC_STORE_PARAM3
+    ),
+    DESMOS_MEM_CHUNK_SIZE
   );
+  end_expression();
 
-  emit_expression(
-    des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "="
-    des_call(FUNC_STORE_SUBFUNC, FUNC_STORE_PARAM0 "+1," FUNC_STORE_PARAM1)
-  );
+  begin_expression();
+  put(des_call(FUNC_STORE, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1) "=" LPAREN);
+  for (int chunk = 0; chunk * DESMOS_MEM_CHUNK_SIZE < DESMOS_MEM_SIZE; chunk++) {
+    if (chunk != 0) put(",");
+    printf(
+      VAR_MEMARR_FMT ACTION_SETTO 
+      des_call(
+        FUNC_STORE_SUBFUNC, 
+        FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1 ",%d," VAR_MEMARR_FMT
+      ),
+      chunk,
+      chunk,
+      chunk
+    );
+  }
+  put(RPAREN);
+  end_expression();
 }
 
 void init_state(Data* data) {
@@ -202,16 +253,25 @@ void init_state(Data* data) {
 
   begin_folder("Memory");
   // Setup memory
-  begin_expression();
-  put(VAR_MEMARR "=" DESMOS_LBRAC);
   int mp = 0;
-  for (; data; data = data->next, mp++) {
-    if (mp != 0) put(",");
-    printf("%d", data->v);
-  }
   for (; mp < DESMOS_MEM_SIZE; mp++) {
-    if (mp != 0) put(",");
-    put("0");
+    if (mp % DESMOS_MEM_CHUNK_SIZE == 0) {
+      if (mp != 0) {
+        put(DESMOS_RBRAC);
+        end_expression();
+      }
+      begin_expression();
+      printf(VAR_MEMARR_FMT "=" DESMOS_LBRAC, mp / DESMOS_MEM_CHUNK_SIZE);
+    } else {
+      put(",");
+    }
+
+    if (data) {
+      printf("%d", data->v);
+      data = data->next;
+    } else {
+      put("0");
+    }
   }
   put(DESMOS_RBRAC);
   end_expression();
@@ -508,7 +568,7 @@ void emit_update_function(int num_funcs) {
       VAR_RUNNING "=1", 
       des_call(
         FUNC_CALLF, 
-        des_call(des_builtin("floor"), BSLASH "frac{" VAR_PC "}{%d}")
+        des_call(des_builtin("floor"), des_frac(VAR_PC, "%d"))
       )
     ), 
     CHUNKED_FUNC_SIZE
