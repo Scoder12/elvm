@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Desmos generates a JSON object that represents a Desmos graph state that can be 
 #  loaded using the Desmos JS API.

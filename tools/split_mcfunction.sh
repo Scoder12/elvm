@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Usage: split_mcfunctions.sh <joined_src> <out_dir>
 

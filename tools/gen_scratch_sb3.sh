@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # This tool generates Scratch 3.0 project file (with ".sb3" extension)
 # from project json that Scratch3 backend output.
