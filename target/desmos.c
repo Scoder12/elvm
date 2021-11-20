@@ -29,7 +29,7 @@
 
 // CONSTANTS
 
-// put function (puts adds a newline)
+// puts but with no newline at the end, because that would break our JSON.
 #define put(s) fputs((s), stdout)
 
 // 4 backslashes:
@@ -53,22 +53,31 @@
 #define DESMOS_UINT_MAX_STR "16777216"
 
 // If format: { cond: truepart, falsepart }
+// falsepart is optional and defaults to "undefined"
 // You can have multiple conds too:
 //  { cond1: r1, cond2: r2, r3 }
 // These macros handle the 1 and 2 outcome cases
 #define des_if(cond,res) DESMOS_IF cond DESMOS_THEN res DESMOS_ENDIF
 #define des_ifelse(cond,res,el) DESMOS_IF cond DESMOS_THEN res DESMOS_ELSE el DESMOS_ENDIF
+// Constructs a call of a calculator function
 #define des_call(func, args) func LPAREN args RPAREN
+// used to wrap the name of a builtin calculator function as they are called
+//  differently from user defined functions.
 #define des_builtin(func) BSLASH "operatorname{" func "}"
+// creates an array. Can also be used to index an array.
 #define des_array(contents) DESMOS_LBRAC contents DESMOS_RBRAC
-#define inc_ip(ins) LPAREN ins "," ACTION_INC_IP RPAREN
+// Wraps contents with desmos parenthesis
 #define des_parens(contents) LPAREN contents RPAREN
-// in most cases it is most useful to set the sequence and n to the same value
+// Defines an expression using sumnation notation. This can be used for various
+//  operations on arrays. in most cases it is most useful to set the sequence and n to
+//  the same value
 #define des_sum(arr) BSLASH "sum_{n=" arr "}^{" arr "}"
 #define des_frac(num, denom) BSLASH "frac{" num "}{" denom "}"
 
-// define a ticker update step (must pass raw string literals)
-#define ticker_update(var,val) put(var BSLASH "to " val)
+// wraps update action(s) in parenthesis and follows them up with the
+//  increment instruction pointer action. This must be used in order for the VM to
+//  execute the correct instruction next cycle.
+#define inc_ip(ins) LPAREN ins "," ACTION_INC_IP RPAREN
 
 // variables, paramaters & functions
 // must all be unqiue or desmos will complain
@@ -590,8 +599,7 @@ void emit_update_function(int num_funcs) {
 
 void target_desmos(Module *module) {
   // Setup graph.
-  // getState() has a graph key with viewport info, and a randomSeed, but hese
-  // fields
+  // getState() has a graph key with viewport info, and a randomSeed, but these fields
   //  are actually optional for Calc.setState().
   put("{\"version\":9,\"expressions\":{");
 
