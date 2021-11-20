@@ -12,6 +12,21 @@
  * Warning: Do not put the JSON in a string literal or it can mess up backslashes.
  * 
  * Change behavior by using the preprocessor constants at the top of the file.
+ * 
+ * How does it work?
+ * 
+ * The desmos calculator has a feature called "tickers" that allows our update function
+ * to be run in a tight loop. Each register is a variable in the calculator and the
+ * memory is stored as long lists. Another desmos feature, "actions", allows our update
+ * function to specify which variable we want to update and to what value by returning
+ * a special value from our update function. This allows us to update the registers and
+ * memory values when requested by instructions.
+ * 
+ * STDIN is implemented as a list of ASCII values. Each time the program uses the GETC
+ * instruction, the leftmost value is popped off the list and returned to the program.
+ * 
+ * STDOUT works in a similar way, whith the program appending output ASCII values to
+ * the STDOUT list. 
 */
 #include <ctype.h>
 #include <ir/ir.h>
@@ -118,8 +133,13 @@
 #define ACTION_INC_IP "h"
 // registers
 #define VAR_PC "p_{c}"
-// the instruction number (relative to the program counter)
-// reset each time the program counter changes.
+// This VM uses a nonstandard "instruction pointer" / "instruction counter".
+// Because of the way desmos works, each time the runtime ticks and our update function
+//  is called, we can only touch each register once, so we have to break up each PC
+//  block into multiple calls to the update function. 
+// This "register" holds the number of the instruction group we are executing relative
+//  to the current PC value. Each time the PC is updated, this value must also be set
+//  to zero or we will skip instructions.
 #define VAR_IP "i_{p}"
 const char* desmos_reg_names[7] = {
   "a", "b", "c", "d", "b_{p}", "s_{p}", VAR_PC
@@ -131,20 +151,26 @@ const char* desmos_reg_names[7] = {
 // Desmos expression IDs must be unique
 //  (they use them in their UI framework like the react "key" prop)
 // The UI seems to assign them sequentially, so that is what this program will do.
-// (0 is the folder)
-static int exp_id = 1;
-static int folder_id = -1;
+static int exp_id = 1; // start assigning at 1
+// Expressions are grouped into folders not by their position, but by indicating the
+//  expression ID of the folder they are part of.
+static int folder_id = -1; // -1 indicates no current folder active.
 
 void begin_folder(char *name) {
   if (exp_id != 1) put(",");
+  // Initialize the folder
   printf(
     "{\"type\":\"folder\",\"collapsed\":true,\"id\":%d,\"title\":\"%s\"}",
     exp_id, name
   );
+  // Remember the ID so child expressions can be added
   folder_id = exp_id;
   exp_id++;
 }
 
+// To emit an expression, you can either `emit_expression("latex");` or
+//  `begin_expression(); put("latex"); end_expression();`.
+// Failing to call these methods in the proper order will break the JSON parsing.
 void begin_expression(void) {
   if (exp_id != 1) put(",");
   // include "hidden": true to hide graphing variables unintentionally
@@ -174,10 +200,12 @@ void emit_expression(char *exp) {
 
 // Graph phases
 void emit_ticker_handler() {
+  // Each tick, call our update function
   put(des_call(FUNC_UPDATE, ""));
 }
 
 void emit_load_function(void) {
+  // Helper function to load a value out of memory arrays.
   begin_expression();
   printf(
     des_call(FUNC_LOAD, FUNC_LOAD_PARAM0) "="
@@ -211,6 +239,7 @@ void emit_load_function(void) {
 }
 
 void emit_store_function(void) {
+  // Helper functions to store a value in a memory array.
   begin_expression();
   printf(
     des_call(FUNC_STORE_SUBFUNC, FUNC_STORE_PARAM0 "," FUNC_STORE_PARAM1 "," FUNC_STORE_PARAM2 "," FUNC_STORE_PARAM3) "="
@@ -244,6 +273,7 @@ void emit_store_function(void) {
 }
 
 void init_state(Data* data) {
+  // This folder holds the array of characters for stdin and stdout.
   begin_folder("IO");
   emit_expression(VAR_STDIN "=" des_array(""));
   emit_expression(VAR_STDOUT "=" des_array(""));
