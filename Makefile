@@ -221,7 +221,7 @@ TEST_INS := $(wildcard test/*.in)
 include clear_vars.mk
 SRCS := $(OUT.c)
 EXT := exe
-CMD = $(CC) -std=gnu99 -DNOFILE -include libc/_builtin.h -I. $2 -o $1
+CMD = $(CC) $(CFLAGS) -DNOFILE -include libc/_builtin.h -I. $2 -o $1
 OUT.c.exe := $(SRCS:%=%.$(EXT))
 include build.mk
 
