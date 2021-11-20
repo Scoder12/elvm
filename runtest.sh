@@ -9,7 +9,7 @@ shift
 cmd="$@"
 ext=$(echo ${cmd} | sed 's/.*\.//')
 
-ins=$(/bin/ls */${name}*.in 2> /dev/null || true)
+ins=$(/usr/bin/env ls */${name}*.in 2> /dev/null || true)
 
 if [ -z "${ins}" ]; then
     if [ ${ext} = "sed" ]; then
