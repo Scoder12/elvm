@@ -66,6 +66,7 @@ async function main() {
 
   // Setup calculator
   const browser = await puppeteer.launch({
+    executablePath: process.env.CHROME_EXECUTABLE_PATH, // optional executable override
     headless: true, // whether to show browser window
   });
   const page = await browser.newPage();
